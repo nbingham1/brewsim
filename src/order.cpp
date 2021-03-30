@@ -47,11 +47,11 @@ void order_t::load(grammar_t &grammar)
 	n[1] = grammar.insert(new regular_expression("[_a-zA-Z][_a-zA-Z0-9]*", true));
 	n[2] = grammar.insert(new regular_expression("\\\"([^\\\"\\\\]|\\\\.)*\\\"", true));
 	n[3] = grammar.insert(new regular_expression("-?[0-9]+(\\.[0-9]*)?|-?[0-9]*\\.[0-9]+", true));
-	n[4] = grammar.insert(new regular_expression("\\)", true));
+	n[4] = grammar.insert(new regular_expression("\\)", false));
 	n[5] = grammar.insert(new stem(1, true));
 	n[6] = grammar.insert(new stem(8, true));
 	n[7] = grammar.insert(new stem(1, true));
-	n[8] = grammar.insert(new regular_expression("\\(", true));
+	n[8] = grammar.insert(new regular_expression("\\(", false));
 	n[9] = grammar.insert(new stem(16, true));
 	n[10] = grammar.insert(new stem(7, true));
 	n[11] = grammar.insert(new stem(1, true));
@@ -69,11 +69,11 @@ void order_t::load(grammar_t &grammar)
 	n[23] = grammar.insert(new regular_expression("+", true));
 	n[24] = grammar.insert(new stem(1, true));
 	n[25] = grammar.insert(new stem(14, true));
-	n[26] = grammar.insert(new regular_expression("\\)", true));
+	n[26] = grammar.insert(new regular_expression("\\)", false));
 	n[27] = grammar.insert(new stem(1, true));
 	n[28] = grammar.insert(new stem(9, true));
 	n[29] = grammar.insert(new stem(1, true));
-	n[30] = grammar.insert(new regular_expression("\\(", true));
+	n[30] = grammar.insert(new regular_expression("\\(", false));
 	n[31] = grammar.insert(new stem(8, true));
 	n[32] = grammar.insert(new stem(1, true));
 	n[33] = grammar.insert(new regular_expression("!=", true));

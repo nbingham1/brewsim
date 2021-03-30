@@ -1,0 +1,21 @@
+
+order = (_ (resource | variable | aggregate | constraint | task))+ _ ~"\0";
+resource = ("have" | "need") _ instance _ "=" _ expression _ ~";";
+variable = "where" _ instance _ "=" _ expression _ ~";";
+aggregate = ("min" | "max") _ expression _ ~";";
+constraint = "keep" _ boolean _ ~";";
+task = ~"task" _ text _ ~"{" (_ effect)+ _ ~"}";
+effect = ("uses" | "locks" | "consumes" | "produces") _ expression _ instance _ ~";";
+
+boolean = boolean0 (_ ("and" | "or" | "xor") _ boolean0)*;
+boolean0 = ("not" _)? boolean1;
+boolean1 = expression _ ("<" | ">" | "<=" | ">=" | "==" | "!=") _ expression | "\(" _ boolean _ "\)";
+
+expression = expression0 (_ ("+" | "-") _ expression0)*;
+expression0 = expression1 (_ ("*" | "/" | "%") _ expression1)*;
+expression1 = ("-" _)? (instance | float | "\(" _ expression _ "\)");
+
+float = "-?[0-9]+(\.[0-9]*)?|-?[0-9]*\.[0-9]+";
+text = "\"([^\"\\]|\\.)*\"";
+instance = "[_a-zA-Z][_a-zA-Z0-9]*";
+_ ~= "[ \t\n\r]*";

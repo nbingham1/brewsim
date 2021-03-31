@@ -2,47 +2,32 @@
 
 #include <stdint.h>
 #include <vector>
+#include <map>
 #include <string>
 
-struct Arc
+struct Utilization
 {
-	int64_t maxSeparation;
+	enum Type {
+		use,
+		lock,
+		consume,
+		produce
+	};
 
-	// OR, indexes into tasks
-	std::vector<int32_t> from;
-	std::vector<int32_t> to;
-};
-
-struct Requirement
-{
-	int32_t resourceId;
-	float scale;
-};
-
-struct Resource
-{
-	std::string name;
-	float maxPeak;
-	float maxAccum;
+	int64_t amount;
+	Type type;
 };
 
 struct Task
 {
-	int32_t orderId;
-	int64_t duration; // minutes
-	std::vector<Requirement> resources;
-
-	// AND, indexes into arcs
-	std::vector<int32_t> from;
-	std::vector<int32_t> to;
+	// resourceId -> utilization
+	std::map<int32_t, Utilization> requirements;
 };
 
-struct OrderGraph
+struct Process
 {
 	std::vector<Task> tasks;
-	std::vector<Arc> arcs;
-	std::vector<Resource> resources;
-	
-	// indexes into arcs
-	std::vector<int32_t> start;
+
+	// resourceName
+	std::vector<std::string> resources;
 };

@@ -1,27 +1,41 @@
 #pragma once
 
 #include "task.h"
+#include <stdint.h>
+#include <vector>
+#include <map>
+#include <set>
+#include <unordered_set>
 
 struct Status
 {
-	Status(std::vector<int32_t> start);
+	Status();
+	Status(std::map<int32_t, int64_t> start);
 	Status(const Status &copy);
 	~Status();
 
-	// indexes into arcs
-	std::vector<int32_t> curr;
+	// taskId
+	std::vector<size_t> schedule;
+
+	// resourceId -> amount
+	std::map<int32_t, int64_t> curr;
+
+	bool step(const std::map<int32_t, Utilization> &task);
+	bool satisfies(const std::map<int32_t, int64_t> &task) const;
 };
 
 struct Simulator
 {
-	Simulator(OrderGraph *orders);
+	Simulator();
 	~Simulator();
 
-	OrderGraph *orders;
+	std::map<int32_t, int64_t> end;
 
 	std::vector<Status> stack;
+	std::unordered_set<std::set<int32_t>, std::vector<int64_t> > seen;
+	Status minima;
 
-	void setup();
-	void run();
+	void setup(std::map<int32_t, int64_t> start, std::map<int32_t, int64_t> end);
+	void run(const Process &process);
 };
 

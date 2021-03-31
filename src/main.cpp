@@ -5,6 +5,10 @@
 
 using namespace pgen;
 
+bool loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	
+}
+
 bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	auto i = token.tokens.begin();
 	std::string type = lexer.read(i->begin, i->end);

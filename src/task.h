@@ -68,7 +68,7 @@ struct Expression
 	};
 
 	std::string label;
-	int32_t op;
+	std::vector<int32_t> operators;
 	std::set<int32_t> parents;
 	std::vector<Term> terms;
 };

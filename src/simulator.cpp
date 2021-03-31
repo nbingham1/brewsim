@@ -94,14 +94,15 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 		const Expression &expr = process.expressions[*exprId];
 
 		int64_t value = getValue(expr.terms[0]);
-		if (expr.op == Expression::NOT) {
-			value = (int64_t)(not value);
-		} else if (expr.op == Expression::NEG) {
-			value = -value;
+		if (expr.terms.size() == 1) {
+			switch (expr.operators[0]) {
+				case Expression::NOT: value = (int64_t)(not value); break;
+				case Expression::NEG: value = -value; break;
+			}
 		} else {
-			for (auto i = expr.terms.begin()+1; i != expr.terms.end(); i++) {
-				int64_t next = getValue(*i);
-				switch (expr.op) {
+			for (size_t i = 1; i < expr.terms.size(); i++) {
+				int64_t next = getValue(expr.terms[i]);
+				switch (expr.operators[i-1]) {
 					case Expression::AND: value = (int64_t)(value and next); break;
 					case Expression::OR: value = (int64_t)(value or next); break;
 					case Expression::LT: value = (int64_t)(value < next); break;

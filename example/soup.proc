@@ -1,25 +1,17 @@
 task "cook the soup" {
-	locks 1 pot;
-	locks 1 burner;
-	consumes 1 soupCan;
-	consumes 5*60 seconds;
+	locks 1 pot, 1 burner;
+	consumes 1 soupCan, 5*60 seconds;
 	produces 1 hotSoup;
 }
 
 task "stir the soup" {
 	uses 1 spoon;
-	consumes 10 seconds;
-	consumes 1 hotSoup;
+	consumes 10 seconds, 1 hotSoup;
 	locks 1 person;
 	
 	produces 1 stirredHotSoup;
 }
 
-have 1 pot;
-have 4 burner;
-have 1 soupCan;
-have inf seconds;
-have 1 person;
-have 1 spoon;
+have 1 pot, 4 burner, 1 soupCan, inf seconds, 1 person, 1 spoon;
 need 1 stirredHotSoup;
 min seconds;

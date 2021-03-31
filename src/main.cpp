@@ -3,19 +3,31 @@
 #include "order.h"
 #include "simulator.h"
 
+using namespace pgen;
+
+void load(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	for (auto i : token.tokens) {
+		if (i.type == gram.TASK) {
+			i.emit(lexer);
+		} else {
+		}
+	}
+}
+
 int main(int argc, char **argv)
 {
 	if (argc > 1) {
-		pgen::order_t order;
-		pgen::grammar_t grammar;
+		order_t order;
+		grammar_t grammar;
 		order.load(grammar);
 
-		pgen::lexer_t lexer;
+		lexer_t lexer;
 		lexer.open(argv[1]);
 
-		pgen::parsing result = grammar.parse(lexer);
+		parsing result = grammar.parse(lexer);
 		if (result.msgs.size() == 0) {
-			result.tree.emit(lexer);
+			Process proc;
+			load(&proc, lexer, order, result.tree);
 		} else {
 			for (auto msg : result.msgs) {
 				std::cout << msg << std::endl;

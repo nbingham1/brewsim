@@ -14,12 +14,13 @@ Status::Status(const Status &copy) {
 Status::~Status() {
 }
 
-bool Status::step(const std::map<int32_t, Utilization> &task) {
+bool Status::step(const Process &process, int32_t taskId) {
 	auto i = curr.begin();
-	auto j = task.begin();
-	while (i != curr.end() and j != task.end()) {
+	auto j = process.tasks[taskId].requirements.begin();
+	while (i != curr.end() and j != process.tasks[taskId].requirements.end()) {
 		if (i->first == j->first) {
 			if (j->second.type != Utilization::Type::produce && i->second < j->second.amount) {
+				printf("not enough %s: %ld < %ld\n", process.resources[j->first].c_str(), i->second, j->second.amount);
 				return false;
 			}
 
@@ -33,14 +34,28 @@ bool Status::step(const std::map<int32_t, Utilization> &task) {
 		} else if (i->first < j->first) {
 			i++;
 		} else {
-			if (j->second.type != Utilization::Type::produce && j->second.amount > 0) {
+			if (j->second.type == Utilization::Type::produce) {
+				curr.insert(i, std::pair<int32_t, int64_t>(j->first, j->second.amount));
+			} else if (j->second.amount > 0) {
+				printf("not enough %s: %ld < %ld\n", process.resources[j->first].c_str(), 0l, j->second.amount);
 				return false;
 			}
-
-			curr.insert(i, std::pair<int32_t, int64_t>(j->first, j->second.amount));
+			
 			j++;
 		}
 	}
+
+	while (j != process.tasks[taskId].requirements.end()) {
+		if (j->second.type == Utilization::Type::produce) {
+			curr.insert(i, std::pair<int32_t, int64_t>(j->first, j->second.amount));
+		} else if (j->second.amount > 0) {
+			printf("not enough %s: %ld < %ld\n", process.resources[j->first].c_str(), 0l, j->second.amount);
+			return false;
+		}
+
+		j++;
+	}
+
 	return true;
 }
 
@@ -65,6 +80,14 @@ bool Status::satisfies(const std::map<int32_t, int64_t> &task) const {
 			j++;
 		}
 	}
+
+	while (j != task.end()) {
+		if (j->second > 0) {
+			return false;
+		}
+		j++;
+	}
+
 	return true;
 }
 
@@ -74,26 +97,30 @@ Simulator::Simulator() {
 Simulator::~Simulator() {
 }
 
-void Simulator::setup(std::map<int32_t, int64_t> start, std::map<int32_t, int64_t> end) {
-	this->stack.push_back(Status(start));
-	this->end = end;
-}
-
 void Simulator::run(const Process &process) {
+	this->stack.clear();
+	this->stack.push_back(Status(process.start));
+
 	while (stack.size() > 0) {
+		printf("stack size: %lu\n", stack.size());
 		Status status = std::move(stack.back());
 		stack.pop_back();
 
-		if (status.satisfies(end)) {
+		if (status.satisfies(process.end)) {
+			printf("satisfies end condition\n");
 			// TODO(nbingham) check against min
 		} else {
 			for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
+				printf("checking task %lu\n", taskId);
 				Status choice = status;
 				choice.schedule.push_back(taskId);
-				if (choice.step(process.tasks[taskId].requirements)) {
+				if (choice.step(process, taskId)) {
+					printf("success\n");
 					// TODO(nbingham) check if seen
 					// TODO(nbingham) check against min
 					stack.push_back(choice);
+				} else {
+					printf("fail\n");
 				}
 			}
 		}

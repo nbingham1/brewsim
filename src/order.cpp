@@ -100,7 +100,7 @@ void order_t::load(grammar_t &grammar)
 	n[54] = grammar.insert(new stem(1, true));
 	n[55] = grammar.insert(new stem(7, true));
 	n[56] = grammar.insert(new stem(1, true));
-	n[57] = grammar.insert(new regular_expression(",", true));
+	n[57] = grammar.insert(new regular_expression(",", false));
 	n[58] = grammar.insert(new stem(1, true));
 	n[59] = grammar.insert(new stem(8, true));
 	n[60] = grammar.insert(new stem(1, true));
@@ -145,7 +145,7 @@ void order_t::load(grammar_t &grammar)
 	n[99] = grammar.insert(new stem(1, true));
 	n[100] = grammar.insert(new stem(7, true));
 	n[101] = grammar.insert(new stem(1, true));
-	n[102] = grammar.insert(new regular_expression(",", true));
+	n[102] = grammar.insert(new regular_expression(",", false));
 	n[103] = grammar.insert(new stem(1, true));
 	n[104] = grammar.insert(new stem(8, true));
 	n[105] = grammar.insert(new stem(1, true));

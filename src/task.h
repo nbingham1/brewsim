@@ -21,14 +21,19 @@ struct Utilization
 struct Task
 {
 	std::string name;
-	// resourceId -> utilization
+	// resourceId ->
 	std::map<int32_t, Utilization> requirements;
 };
 
 struct Process
 {
-	std::vector<Task> tasks;
-
 	// resourceName
 	std::vector<std::string> resources;
+	std::vector<Task> tasks;
+
+	// resourceId -> amount
+	std::map<int32_t, int64_t> start;
+	std::map<int32_t, int64_t> end;
+
+	int32_t getResourceId(std::string resource);
 };

@@ -5,7 +5,68 @@
 
 using namespace pgen;
 
-bool loadEffect(Task *t, lexer_t &lexer, const order_t &gram, const token_t &token) {
+bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	auto i = token.tokens.begin();
+	std::string type = lexer.read(i->begin, i->end);
+	i++;
+
+	while (i != token.tokens.end()) {
+		// TODO(nbingham) implement expressions
+		std::string expr = lexer.read(i->begin, i->end);
+		int64_t amount = 0;
+		if (expr == "inf") {
+			amount = std::numeric_limits<int64_t>::max();
+		} else {
+			amount = std::stoi(expr);
+		}
+		i++;
+
+		std::string name = lexer.read(i->begin, i->end);
+		int32_t index = p->getResourceId(name);
+		i++;
+
+		printf("%s %d %ld\n", type.c_str(), index, amount);
+
+		if (type == "have") {
+			p->start.insert(std::pair<int32_t, int64_t>(index, amount));
+		} else if (type == "need") {
+			p->end.insert(std::pair<int32_t, int64_t>(index, amount));
+		}
+	}
+
+	return true;	
+}
+
+bool loadEffect(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	Utilization result;
+	auto i = token.tokens.begin();
+	std::string type = lexer.read(i->begin, i->end);
+	if (type == "uses") {
+		result.type = Utilization::Type::use;
+	} else if (type == "locks") {
+		result.type = Utilization::Type::lock;
+	} else if (type == "consumes") {
+		result.type = Utilization::Type::consume;
+	} else if (type == "produces") {
+		result.type = Utilization::Type::produce;
+	} else {
+		// TODO(nbingham) flag an error
+	}
+	i++;
+
+	while (i != token.tokens.end()) {
+		// TODO(nbingham) implement expressions
+		std::string expr = lexer.read(i->begin, i->end);
+		result.amount = std::stoi(expr);
+		i++;
+
+		std::string name = lexer.read(i->begin, i->end);
+		int32_t index = p->getResourceId(name);
+		i++;
+
+		t->requirements.insert(std::pair<int32_t, Utilization>(index, result));
+	}
+
 	return true;	
 }
 
@@ -21,7 +82,7 @@ bool loadTask(Process *p, lexer_t &lexer, const order_t &gram, const token_t &to
 
 	while (i != token.tokens.end()) {
 		if (i->type == gram.EFFECT) {
-			if (not loadEffect(&result, lexer, gram, *i)) {
+			if (not loadEffect(p, &result, lexer, gram, *i)) {
 				return false;
 			}
 		} else {
@@ -32,6 +93,9 @@ bool loadTask(Process *p, lexer_t &lexer, const order_t &gram, const token_t &to
 
 	printf("found task %s\n", result.name.c_str());
 	p->tasks.push_back(result);
+	for (auto r : result.requirements) {
+		printf("%d %ld\n", r.first, r.second.amount);
+	}
 
 	return true;
 }
@@ -43,6 +107,9 @@ bool load(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token)
 				return false;
 			}
 		} else if (i.type == gram.RESOURCE) {
+			if (not loadResource(p, lexer, gram, i)) {
+				return false;
+			}
 		} else if (i.type == gram.VARIABLE) {
 		} else if (i.type == gram.AGGREGATE) {
 		} else if (i.type == gram.CONSTRAINT) {
@@ -68,6 +135,8 @@ int main(int argc, char **argv)
 		if (result.msgs.size() == 0) {
 			Process proc;
 			load(&proc, lexer, order, result.tree);
+			Simulator sim;
+			sim.run(proc);
 		} else {
 			for (auto msg : result.msgs) {
 				std::cout << msg << std::endl;

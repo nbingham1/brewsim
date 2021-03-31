@@ -1,6 +1,6 @@
 task "cook the soup" {
 	locks 1 pot, 1 burner;
-	consumes 1 soupCan, 5*60 seconds;
+	consumes 1 soupCan, 300 seconds;
 	produces 1 hotSoup;
 }
 

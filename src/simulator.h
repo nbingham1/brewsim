@@ -20,7 +20,7 @@ struct Status
 	// resourceId -> amount
 	std::map<int32_t, int64_t> curr;
 
-	bool step(const std::map<int32_t, Utilization> &task);
+	bool step(const Process &process, int32_t taskId);
 	bool satisfies(const std::map<int32_t, int64_t> &task) const;
 };
 
@@ -29,13 +29,10 @@ struct Simulator
 	Simulator();
 	~Simulator();
 
-	std::map<int32_t, int64_t> end;
-
 	std::vector<Status> stack;
 	std::unordered_set<std::set<int32_t>, std::vector<int64_t> > seen;
 	Status minima;
 
-	void setup(std::map<int32_t, int64_t> start, std::map<int32_t, int64_t> end);
 	void run(const Process &process);
 };
 

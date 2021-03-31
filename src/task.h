@@ -20,6 +20,7 @@ struct Utilization
 
 struct Task
 {
+	std::string name;
 	// resourceId -> utilization
 	std::map<int32_t, Utilization> requirements;
 };

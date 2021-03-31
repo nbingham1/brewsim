@@ -42,13 +42,13 @@ bool loadEffect(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const 
 	auto i = token.tokens.begin();
 	std::string type = lexer.read(i->begin, i->end);
 	if (type == "uses") {
-		result.type = Utilization::Type::use;
+		result.type = Utilization::USE;
 	} else if (type == "locks") {
-		result.type = Utilization::Type::lock;
+		result.type = Utilization::LOCK;
 	} else if (type == "consumes") {
-		result.type = Utilization::Type::consume;
+		result.type = Utilization::CONSUME;
 	} else if (type == "produces") {
-		result.type = Utilization::Type::produce;
+		result.type = Utilization::PRODUCE;
 	} else {
 		// TODO(nbingham) flag an error
 	}

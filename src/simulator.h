@@ -20,7 +20,12 @@ struct Status
 	// resourceId -> amount
 	std::map<int32_t, int64_t> curr;
 
+	std::vector<int64_t> values;
+
+	int64_t getValue(int32_t exprId);
+
 	bool step(const Process &process, int32_t taskId);
+	void evaluate(const Process &process, std::set<int32_t> exprs);
 	bool satisfies(const std::map<int32_t, int64_t> &task) const;
 };
 
@@ -31,7 +36,8 @@ struct Simulator
 
 	std::vector<Status> stack;
 	std::unordered_set<std::set<int32_t>, std::vector<int64_t> > seen;
-	Status minima;
+	std::vector<Status> minima;
+	std::vector<Status> maxima;
 
 	void run(const Process &process);
 };

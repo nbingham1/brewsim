@@ -14,49 +14,115 @@ Status::Status(const Status &copy) {
 Status::~Status() {
 }
 
+int64_t Status::getValue(int32_t exprId) {
+	if (exprId < 0) {
+		auto i = curr.find(-exprId);
+		if (i == curr.end()) {
+			return 0;
+		} else {
+			return i->second;
+		}
+	} else if (exprId < (int32_t)values.size()) {
+		return values[exprId];
+	} else {
+		return 0;
+	}
+}
+
 bool Status::step(const Process &process, int32_t taskId) {
+	std::set<int32_t> exprs;
+
 	auto i = curr.begin();
 	auto j = process.tasks[taskId].requirements.begin();
 	while (i != curr.end() and j != process.tasks[taskId].requirements.end()) {
 		if (i->first == j->first) {
-			if (j->second.type != Utilization::Type::produce && i->second < j->second.amount) {
-				printf("not enough %s: %ld < %ld\n", process.resources[j->first].c_str(), i->second, j->second.amount);
+			if (j->second.type != Utilization::PRODUCE && i->second < j->second.amount) {
+				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), i->second, j->second.amount);
 				return false;
 			}
 
-			if (j->second.type == Utilization::Type::consume) {
+			if (j->second.type == Utilization::CONSUME) {
 				i->second -= j->second.amount;
-			} else if (j->second.type == Utilization::Type::produce) {
+			} else if (j->second.type == Utilization::PRODUCE) {
 				i->second += j->second.amount;
+			}
+
+			if (j->second.type == Utilization::CONSUME or j->second.type == Utilization::PRODUCE) {
+				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 			}
 			i++;
 			j++;
 		} else if (i->first < j->first) {
 			i++;
 		} else {
-			if (j->second.type == Utilization::Type::produce) {
+			if (j->second.type == Utilization::PRODUCE) {
 				curr.insert(i, std::pair<int32_t, int64_t>(j->first, j->second.amount));
+				
+				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 			} else if (j->second.amount > 0) {
-				printf("not enough %s: %ld < %ld\n", process.resources[j->first].c_str(), 0l, j->second.amount);
+				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, j->second.amount);
 				return false;
 			}
-			
+
 			j++;
 		}
 	}
 
 	while (j != process.tasks[taskId].requirements.end()) {
-		if (j->second.type == Utilization::Type::produce) {
+		if (j->second.type == Utilization::PRODUCE) {
 			curr.insert(i, std::pair<int32_t, int64_t>(j->first, j->second.amount));
+
+			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 		} else if (j->second.amount > 0) {
-			printf("not enough %s: %ld < %ld\n", process.resources[j->first].c_str(), 0l, j->second.amount);
+			printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, j->second.amount);
 			return false;
 		}
 
 		j++;
 	}
 
+	evaluate(process, exprs);
+
 	return true;
+}
+
+void Status::evaluate(const Process &process, std::set<int32_t> exprs)
+{
+	// The parser/interpreter must guarantee that expressions with higher Id
+	// values are always dependant upon only expressions with lower Id values.
+	for (auto exprId = exprs.begin(); exprId != exprs.end(); exprId++) {
+		const Expression &expr = process.expressions[*exprId];
+
+		int64_t value = getValue(expr.children[0]);
+		if (expr.op == Expression::NOT) {
+			value = (int64_t)(not value);
+		} else if (expr.op == Expression::NEG) {
+			value = -value;
+		} else {
+			for (auto i = expr.children.begin()+1; i != expr.children.end(); i++) {
+				int64_t next = getValue(*i);
+				switch (expr.op) {
+					case Expression::AND: value = (int64_t)(value and next); break;
+					case Expression::OR: value = (int64_t)(value or next); break;
+					case Expression::LT: value = (int64_t)(value < next); break;
+					case Expression::GT: value = (int64_t)(value > next); break;
+					case Expression::LE: value = (int64_t)(value <= next); break;
+					case Expression::GE: value = (int64_t)(value >= next); break;
+					case Expression::EQ: value = (int64_t)(value == next); break;
+					case Expression::NE: value = (int64_t)(value != next); break;
+					case Expression::ADD: value = (int64_t)(value + next); break;
+					case Expression::SUB: value = (int64_t)(value - next); break;
+					case Expression::MUL: value = (int64_t)(value * next); break;
+					case Expression::DIV: value = (int64_t)(value / next); break;
+					case Expression::MOD: value = (int64_t)(value % next); break;
+				}
+			}
+		}
+
+		values[*exprId] = value;
+
+		exprs.insert(expr.parents.begin(), expr.parents.end());
+	}
 }
 
 bool Status::satisfies(const std::map<int32_t, int64_t> &task) const {

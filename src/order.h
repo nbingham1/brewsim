@@ -11,7 +11,7 @@ struct order_t
 	int32_t _;
 	int32_t RESOURCE;
 	int32_t VARIABLE;
-	int32_t AGGREGATE;
+	int32_t SELECT;
 	int32_t CONSTRAINT;
 	int32_t TASK;
 	int32_t EXPRESSION;

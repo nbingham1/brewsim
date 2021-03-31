@@ -15,8 +15,8 @@ void order_t::load(grammar_t &grammar)
 	grammar.rules.push_back(rule_t(RESOURCE, "order::resource", true, true));
 	VARIABLE = grammar.rules.size();
 	grammar.rules.push_back(rule_t(VARIABLE, "order::variable", true, true));
-	AGGREGATE = grammar.rules.size();
-	grammar.rules.push_back(rule_t(AGGREGATE, "order::aggregate", true, true));
+	SELECT = grammar.rules.size();
+	grammar.rules.push_back(rule_t(SELECT, "order::select", true, true));
 	CONSTRAINT = grammar.rules.size();
 	grammar.rules.push_back(rule_t(CONSTRAINT, "order::constraint", true, true));
 	TASK = grammar.rules.size();
@@ -60,13 +60,13 @@ void order_t::load(grammar_t &grammar)
 	n[14] = grammar.insert(new stem(1, true));
 	n[15] = grammar.insert(new regular_expression("%", true));
 	n[16] = grammar.insert(new regular_expression("/", true));
-	n[17] = grammar.insert(new regular_expression("*", true));
+	n[17] = grammar.insert(new regular_expression("\\*", true));
 	n[18] = grammar.insert(new stem(1, true));
 	n[19] = grammar.insert(new stem(15, true));
 	n[20] = grammar.insert(new stem(14, true));
 	n[21] = grammar.insert(new stem(1, true));
 	n[22] = grammar.insert(new regular_expression("-", true));
-	n[23] = grammar.insert(new regular_expression("+", true));
+	n[23] = grammar.insert(new regular_expression("\\+", true));
 	n[24] = grammar.insert(new stem(1, true));
 	n[25] = grammar.insert(new stem(14, true));
 	n[26] = grammar.insert(new regular_expression("\\)", false));

@@ -14,18 +14,18 @@ Status::Status(const Status &copy) {
 Status::~Status() {
 }
 
-int64_t Status::getValue(int32_t exprId) {
-	if (exprId < 0) {
-		auto i = curr.find(-exprId);
+int64_t Status::getValue(Term term) {
+	if (term.type == Term::RESOURCE) {
+		auto i = curr.find(term.value);
 		if (i == curr.end()) {
 			return 0;
 		} else {
 			return i->second;
 		}
-	} else if (exprId < (int32_t)values.size()) {
-		return values[exprId];
+	} else if (term.type == Term::EXPRESSION) {
+		return values[term.value];
 	} else {
-		return 0;
+		return term.value;
 	}
 }
 
@@ -93,13 +93,13 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 	for (auto exprId = exprs.begin(); exprId != exprs.end(); exprId++) {
 		const Expression &expr = process.expressions[*exprId];
 
-		int64_t value = getValue(expr.children[0]);
+		int64_t value = getValue(expr.terms[0]);
 		if (expr.op == Expression::NOT) {
 			value = (int64_t)(not value);
 		} else if (expr.op == Expression::NEG) {
 			value = -value;
 		} else {
-			for (auto i = expr.children.begin()+1; i != expr.children.end(); i++) {
+			for (auto i = expr.terms.begin()+1; i != expr.terms.end(); i++) {
 				int64_t next = getValue(*i);
 				switch (expr.op) {
 					case Expression::AND: value = (int64_t)(value and next); break;

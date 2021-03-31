@@ -111,7 +111,7 @@ bool load(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token)
 				return false;
 			}
 		} else if (i.type == gram.VARIABLE) {
-		} else if (i.type == gram.AGGREGATE) {
+		} else if (i.type == gram.SELECT) {
 		} else if (i.type == gram.CONSTRAINT) {
 		} else {
 			// TODO(nbingham) flag an error

@@ -35,6 +35,18 @@ struct Resource
 	std::set<int32_t> parents;
 };
 
+struct Term
+{
+	enum {
+		CONSTANT = 0,
+		RESOURCE = 1,
+		EXPRESSION = 2,
+	};
+
+	int8_t type;
+	int64_t value;
+};
+
 struct Expression
 {
 	enum {
@@ -58,7 +70,7 @@ struct Expression
 	std::string label;
 	int32_t op;
 	std::set<int32_t> parents;
-	std::vector<int32_t> children;
+	std::vector<Term> terms;
 };
 
 struct Process

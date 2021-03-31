@@ -22,7 +22,7 @@ struct Status
 
 	std::vector<int64_t> values;
 
-	int64_t getValue(int32_t exprId);
+	int64_t getValue(Term term);
 
 	bool step(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);

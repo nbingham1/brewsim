@@ -11,7 +11,7 @@ struct Term
 	enum {
 		CONSTANT = 0,
 		RESOURCE = 1,
-		EXPRESSION = 2,
+		EXPRESSION = 2
 	};
 
 	Term();
@@ -83,10 +83,10 @@ struct Process
 	std::vector<Task> tasks;
 
 	std::vector<Expression> expressions;
-	std::map<std::string, int32_t> variables;
-	std::vector<int32_t> constraints;
-	std::vector<int32_t> minimize;
-	std::vector<int32_t> maximize;
+	std::map<std::string, Term> variables;
+	std::vector<Term> constraints;
+	std::vector<Term> minimize;
+	std::vector<Term> maximize;
 
 	// resourceId -> amount
 	std::map<int32_t, Term> start;

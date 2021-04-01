@@ -120,7 +120,7 @@ void order_t::load(grammar_t &grammar)
 	n[72] = grammar.insert(new stem(1, true));
 	n[73] = grammar.insert(new stem(7, true));
 	n[74] = grammar.insert(new stem(1, true));
-	n[75] = grammar.insert(new regular_expression("keep", true));
+	n[75] = grammar.insert(new regular_expression("keep", false));
 	n[76] = grammar.insert(new regular_expression(";", false));
 	n[77] = grammar.insert(new stem(1, true));
 	n[78] = grammar.insert(new stem(7, true));
@@ -131,11 +131,11 @@ void order_t::load(grammar_t &grammar)
 	n[83] = grammar.insert(new stem(1, true));
 	n[84] = grammar.insert(new stem(7, true));
 	n[85] = grammar.insert(new stem(1, true));
-	n[86] = grammar.insert(new regular_expression("=", true));
+	n[86] = grammar.insert(new regular_expression("=", false));
 	n[87] = grammar.insert(new stem(1, true));
 	n[88] = grammar.insert(new stem(8, true));
 	n[89] = grammar.insert(new stem(1, true));
-	n[90] = grammar.insert(new regular_expression("where", true));
+	n[90] = grammar.insert(new regular_expression("let", false));
 	n[91] = grammar.insert(new regular_expression(";", false));
 	n[92] = grammar.insert(new stem(1, true));
 	n[93] = grammar.insert(new stem(8, true));

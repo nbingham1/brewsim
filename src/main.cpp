@@ -56,7 +56,7 @@ Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token
 			if (j == p->variables.end()) {
 				return Term(Term::RESOURCE, p->getResourceId(name));
 			} else {
-				return Term(Term::EXPRESSION, j->second);
+				return j->second;
 			}
 		} else if (i->type == gram.INTEGER) {
 			std::string valueStr = lexer.read(i->begin, i->end);
@@ -202,6 +202,43 @@ bool loadTask(Process *p, lexer_t &lexer, const order_t &gram, const token_t &to
 	return true;
 }
 
+bool loadVariable(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	auto i = token.tokens.begin();
+	std::string name = lexer.read(i->begin, i->end);
+	i++;
+
+	Term expr = loadExpression(p, lexer, gram, *i);
+	i++;
+
+	p->variables.insert(std::pair<std::string, Term>(name, expr));
+	return true;
+}
+
+bool loadConstraint(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	auto i = token.tokens.begin();
+	Term expr = loadExpression(p, lexer, gram, *i);
+	i++;
+
+	p->constraints.push_back(expr);
+	return true;
+}
+
+bool loadSelect(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	auto i = token.tokens.begin();
+	std::string name = lexer.read(i->begin, i->end);
+	i++;
+
+	Term expr = loadExpression(p, lexer, gram, *i);
+	i++;
+
+	if (name == "min") {
+		p->minimize.push_back(expr);
+	} else if (name == "max") {
+		p->maximize.push_back(expr);
+	}
+	return true;
+}
+
 bool load(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	for (auto i : token.tokens) {
 		if (i.type == gram.TASK) {
@@ -213,8 +250,17 @@ bool load(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token)
 				return false;
 			}
 		} else if (i.type == gram.VARIABLE) {
-		} else if (i.type == gram.SELECT) {
+			if (not loadVariable(p, lexer, gram, i)) {
+				return false;
+			}
 		} else if (i.type == gram.CONSTRAINT) {
+			if (not loadConstraint(p, lexer, gram, i)) {
+				return false;
+			}
+		} else if (i.type == gram.SELECT) {
+			if (not loadSelect(p, lexer, gram, i)) {
+				return false;
+			}
 		} else {
 			// TODO(nbingham) flag an error
 		}

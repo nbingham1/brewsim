@@ -7,7 +7,7 @@ task = ~"task" _ text _ ~"{" (_ effect)+ _ ~"}";
 effect = ("uses" | "locks" | "consumes" | "produces") _ expression _ instance (_ ~"," _ expression _ instance)* _ ~";";
 
 expression = expression0 (_ ("and" | "or") _ expression0)*;
-expression0 = expression1 _ ("<" | ">" | "<=" | ">=" | "==" | "!=") _ expression1;
+expression0 = expression1 (_ ("<" | ">" | "<=" | ">=" | "==" | "!=") _ expression1)?;
 expression1 = expression2 (_ ("\+" | "-") _ expression2)*;
 expression2 = expression3 (_ ("\*" | "/" | "%") _ expression3)*;
 expression3 = ("not" _)? expression4;

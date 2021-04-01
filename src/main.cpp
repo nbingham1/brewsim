@@ -48,7 +48,7 @@ Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token
 	if (token.tokens.size() == 0) {
 
 		// TODO(nbingham) flag an error
-		return Term(Term::CONSTANT, 0);
+		return Term();
 	} else if (token.tokens.size() == 1) {
 		if (i->type == gram.INSTANCE) {
 			std::string name = lexer.read(i->begin, i->end);
@@ -122,26 +122,19 @@ bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t
 	i++;
 
 	while (i != token.tokens.end()) {
-		// TODO(nbingham) implement expressions
-		std::string expr = lexer.read(i->begin, i->end);
-		int64_t amount = 0;
-		if (expr == "inf") {
-			amount = std::numeric_limits<int64_t>::max();
-		} else {
-			amount = std::stoi(expr);
-		}
+		Term amount = loadExpression(p, lexer, gram, *i);
 		i++;
 
 		std::string name = lexer.read(i->begin, i->end);
 		int32_t index = p->getResourceId(name);
 		i++;
 
-		printf("%s %d %ld\n", type.c_str(), index, amount);
+		printf("%s %d %ld\n", type.c_str(), index, amount.value);
 
 		if (type == "have") {
-			p->start.insert(std::pair<int32_t, int64_t>(index, amount));
+			p->start.insert(std::pair<int32_t, Term>(index, amount));
 		} else if (type == "need") {
-			p->end.insert(std::pair<int32_t, int64_t>(index, amount));
+			p->end.insert(std::pair<int32_t, Term>(index, amount));
 		}
 	}
 
@@ -166,9 +159,7 @@ bool loadEffect(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const 
 	i++;
 
 	while (i != token.tokens.end()) {
-		// TODO(nbingham) implement expressions
-		std::string expr = lexer.read(i->begin, i->end);
-		result.amount = std::stoi(expr);
+		result.amount = loadExpression(p, lexer, gram, *i);
 		i++;
 
 		std::string name = lexer.read(i->begin, i->end);
@@ -205,7 +196,7 @@ bool loadTask(Process *p, lexer_t &lexer, const order_t &gram, const token_t &to
 	printf("found task %s\n", result.name.c_str());
 	p->tasks.push_back(result);
 	for (auto r : result.requirements) {
-		printf("%d %ld\n", r.first, r.second.amount);
+		printf("%d %ld\n", r.first, r.second.amount.value);
 	}
 
 	return true;

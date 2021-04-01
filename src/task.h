@@ -6,6 +6,22 @@
 #include <set>
 #include <string>
 
+struct Term
+{
+	enum {
+		CONSTANT = 0,
+		RESOURCE = 1,
+		EXPRESSION = 2,
+	};
+
+	Term();
+	Term(int8_t type, int64_t value);
+	~Term();
+
+	int8_t type;
+	int64_t value;
+};
+
 struct Utilization
 {
 	enum {
@@ -15,7 +31,7 @@ struct Utilization
 		PRODUCE = 3
 	};
 
-	int64_t amount;
+	Term amount;
 	int8_t type;
 };
 
@@ -33,21 +49,6 @@ struct Resource
 
 	std::string name;
 	std::set<int32_t> parents;
-};
-
-struct Term
-{
-	enum {
-		CONSTANT = 0,
-		RESOURCE = 1,
-		EXPRESSION = 2,
-	};
-
-	Term(int8_t type, int64_t value);
-	~Term();
-
-	int8_t type;
-	int64_t value;
 };
 
 struct Expression
@@ -88,8 +89,8 @@ struct Process
 	std::vector<int32_t> maximize;
 
 	// resourceId -> amount
-	std::map<int32_t, int64_t> start;
-	std::map<int32_t, int64_t> end;
+	std::map<int32_t, Term> start;
+	std::map<int32_t, Term> end;
 
 	int32_t getResourceId(std::string resource);
 };

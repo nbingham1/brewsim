@@ -7,6 +7,11 @@ Resource::Resource(std::string name) {
 Resource::~Resource() {
 }
 
+Term::Term() {
+	this->type = CONSTANT;
+	this->value = 0;
+}
+
 Term::Term(int8_t type, int64_t value) {
 	this->type = type;
 	this->value = value;

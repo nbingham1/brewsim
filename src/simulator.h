@@ -10,7 +10,7 @@
 struct Status
 {
 	Status();
-	Status(std::map<int32_t, int64_t> start);
+	Status(const Process &process);
 	Status(const Status &copy);
 	~Status();
 
@@ -22,11 +22,11 @@ struct Status
 
 	std::vector<int64_t> values;
 
-	int64_t getValue(Term term);
+	int64_t getValue(Term term) const;
 
 	bool step(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);
-	bool satisfies(const std::map<int32_t, int64_t> &task) const;
+	bool satisfies(const std::map<int32_t, Term> &task) const;
 };
 
 struct Simulator

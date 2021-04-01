@@ -211,6 +211,7 @@ void order_t::load(grammar_t &grammar)
 	n[38]->next.push_back(n[33]);
 	n[38]->next.push_back(n[32]);
 	n[39]->next.push_back(n[38]);
+	n[39]->next.push_back(NULL);
 	n[40]->next.push_back(n[44]);
 	n[40]->next.push_back(NULL);
 	n[41]->next.push_back(n[40]);

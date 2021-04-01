@@ -3,18 +3,29 @@
 Status::Status() {
 }
 
-Status::Status(std::map<int32_t, int64_t> start) {
-	this->curr = start;
+Status::Status(const Process &process) {
+	std::set<int32_t> exprs;
+	for (size_t i = 0; i < process.expressions.size(); i++) {
+		exprs.insert(i);
+	}
+
+	evaluate(process, exprs);
+
+	for (auto i = process.start.begin(); i != process.start.end(); i++) {
+		this->curr.insert(std::pair<int32_t, int64_t>(i->first, getValue(i->second)));
+	}
 }
 
 Status::Status(const Status &copy) {
+	this->schedule = copy.schedule;
 	this->curr = copy.curr;
+	this->values = copy.values;
 }
 
 Status::~Status() {
 }
 
-int64_t Status::getValue(Term term) {
+int64_t Status::getValue(Term term) const {
 	if (term.type == Term::RESOURCE) {
 		auto i = curr.find(term.value);
 		if (i == curr.end()) {
@@ -36,15 +47,16 @@ bool Status::step(const Process &process, int32_t taskId) {
 	auto j = process.tasks[taskId].requirements.begin();
 	while (i != curr.end() and j != process.tasks[taskId].requirements.end()) {
 		if (i->first == j->first) {
-			if (j->second.type != Utilization::PRODUCE && i->second < j->second.amount) {
-				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), i->second, j->second.amount);
+			int64_t amount = getValue(j->second.amount);
+			if (j->second.type != Utilization::PRODUCE && i->second < amount) {
+				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), i->second, amount);
 				return false;
 			}
 
 			if (j->second.type == Utilization::CONSUME) {
-				i->second -= j->second.amount;
+				i->second -= amount;
 			} else if (j->second.type == Utilization::PRODUCE) {
-				i->second += j->second.amount;
+				i->second += amount;
 			}
 
 			if (j->second.type == Utilization::CONSUME or j->second.type == Utilization::PRODUCE) {
@@ -55,12 +67,13 @@ bool Status::step(const Process &process, int32_t taskId) {
 		} else if (i->first < j->first) {
 			i++;
 		} else {
+			int64_t amount = getValue(j->second.amount);
 			if (j->second.type == Utilization::PRODUCE) {
-				curr.insert(i, std::pair<int32_t, int64_t>(j->first, j->second.amount));
+				curr.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
 				
 				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
-			} else if (j->second.amount > 0) {
-				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, j->second.amount);
+			} else if (amount > 0) {
+				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
 				return false;
 			}
 
@@ -69,12 +82,13 @@ bool Status::step(const Process &process, int32_t taskId) {
 	}
 
 	while (j != process.tasks[taskId].requirements.end()) {
+		int64_t amount = getValue(j->second.amount);
 		if (j->second.type == Utilization::PRODUCE) {
-			curr.insert(i, std::pair<int32_t, int64_t>(j->first, j->second.amount));
+			curr.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
 
 			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
-		} else if (j->second.amount > 0) {
-			printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, j->second.amount);
+		} else if (amount > 0) {
+			printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
 			return false;
 		}
 
@@ -120,18 +134,21 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 			}
 		}
 
+		if (*exprId >= (int32_t)values.size()) {
+			values.resize(*exprId+1, 0);
+		}
 		values[*exprId] = value;
 
 		exprs.insert(expr.parents.begin(), expr.parents.end());
 	}
 }
 
-bool Status::satisfies(const std::map<int32_t, int64_t> &task) const {
+bool Status::satisfies(const std::map<int32_t, Term> &task) const {
 	auto i = curr.begin();
 	auto j = task.begin();
 	while (i != curr.end() and j != task.end()) {
 		if (i->first == j->first) {
-			if (i->second < j->second) {
+			if (i->second < getValue(j->second)) {
 				return false;
 			}
 			
@@ -140,7 +157,7 @@ bool Status::satisfies(const std::map<int32_t, int64_t> &task) const {
 		} else if (i->first < j->first) {
 			i++;
 		} else {
-			if (j->second > 0) {
+			if (getValue(j->second) > 0) {
 				return false;
 			}
 
@@ -149,7 +166,7 @@ bool Status::satisfies(const std::map<int32_t, int64_t> &task) const {
 	}
 
 	while (j != task.end()) {
-		if (j->second > 0) {
+		if (getValue(j->second) > 0) {
 			return false;
 		}
 		j++;
@@ -166,7 +183,7 @@ Simulator::~Simulator() {
 
 void Simulator::run(const Process &process) {
 	this->stack.clear();
-	this->stack.push_back(Status(process.start));
+	this->stack.push_back(Status(process));
 
 	while (stack.size() > 0) {
 		printf("stack size: %lu\n", stack.size());

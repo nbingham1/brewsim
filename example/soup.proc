@@ -14,3 +14,6 @@ task "stir the soup" {
 
 have 1 pot, 4 burner, 1 soupCan, 1000 seconds, 1 person, 1 spoon;
 need 1 stirredHotSoup;
+min seconds;
+min person;
+keep burner == 0;

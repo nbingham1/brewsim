@@ -175,6 +175,16 @@ bool Status::satisfies(const std::map<int32_t, Term> &task) const {
 	return true;
 }
 
+bool Status::satisfies(const std::vector<Term> &constraints) const {
+	for (auto i = constraints.begin(); i != constraints.end(); i++) {
+		printf("constraint %ld: %ld\n", i-constraints.begin(), getValue(*i));
+		if (getValue(*i) == 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
 Simulator::Simulator() {
 }
 
@@ -198,7 +208,7 @@ void Simulator::run(const Process &process) {
 				printf("checking task %lu\n", taskId);
 				Status choice = status;
 				choice.schedule.push_back(taskId);
-				if (choice.step(process, taskId)) {
+				if (choice.step(process, taskId) and choice.satisfies(process.constraints)) {
 					printf("success\n");
 					// TODO(nbingham) check if seen
 					// TODO(nbingham) check against min

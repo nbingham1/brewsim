@@ -43,6 +43,9 @@ struct Term
 		EXPRESSION = 2,
 	};
 
+	Term(int8_t type, int64_t value);
+	~Term();
+
 	int8_t type;
 	int64_t value;
 };
@@ -67,7 +70,6 @@ struct Expression
 		MOD = 14
 	};
 
-	std::string label;
 	std::vector<int32_t> operators;
 	std::set<int32_t> parents;
 	std::vector<Term> terms;
@@ -80,6 +82,7 @@ struct Process
 	std::vector<Task> tasks;
 
 	std::vector<Expression> expressions;
+	std::map<std::string, int32_t> variables;
 	std::vector<int32_t> constraints;
 	std::vector<int32_t> minimize;
 	std::vector<int32_t> maximize;

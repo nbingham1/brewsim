@@ -7,6 +7,14 @@ Resource::Resource(std::string name) {
 Resource::~Resource() {
 }
 
+Term::Term(int8_t type, int64_t value) {
+	this->type = type;
+	this->value = value;
+}
+
+Term::~Term() {
+}
+
 int32_t Process::getResourceId(std::string resource) {
 	for (size_t i = 0; i < resources.size(); i++) {
 		if (resources[i].name == resource) {

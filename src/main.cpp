@@ -5,8 +5,115 @@
 
 using namespace pgen;
 
-bool loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
-	
+int32_t loadOperator(lexer_t &lexer, const token_t &token) {
+	std::string op = lexer.read(token.begin, token.end);
+	if (op == "not") {
+		return Expression::NOT;
+	} else if (op == "-") {
+		return Expression::NEG;
+	} else if (op == "and") {
+		return Expression::AND;
+	} else if (op == "or") {
+		return Expression::OR;
+	} else if (op == "<") {
+		return Expression::LT;
+	} else if (op == ">") {
+		return Expression::GT;
+	} else if (op == "<=") {
+		return Expression::LE;
+	} else if (op == ">=") {
+		return Expression::GE;
+	} else if (op == "==") {
+		return Expression::EQ;
+	} else if (op == "!=") {
+		return Expression::NE;
+	} else if (op == "+") {
+		return Expression::ADD;
+	} else if (op == "-") {
+		return Expression::SUB;
+	} else if (op == "*") {
+		return Expression::MUL;
+	} else if (op == "/") {
+		return Expression::DIV;
+	} else if (op == "%") {
+		return Expression::MOD;
+	} else {
+		return -1;
+		// TODO(nbingham) flag an error
+	}
+}
+
+Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	auto i = token.tokens.begin();
+	if (token.tokens.size() == 0) {
+
+		// TODO(nbingham) flag an error
+		return Term(Term::CONSTANT, 0);
+	} else if (token.tokens.size() == 1) {
+		if (i->type == gram.INSTANCE) {
+			std::string name = lexer.read(i->begin, i->end);
+			auto j = p->variables.find(name);
+			if (j == p->variables.end()) {
+				return Term(Term::RESOURCE, p->getResourceId(name));
+			} else {
+				return Term(Term::EXPRESSION, j->second);
+			}
+		} else if (i->type == gram.INTEGER) {
+			std::string valueStr = lexer.read(i->begin, i->end);
+			int64_t value = 0;
+			if (valueStr == "inf") {
+				value = std::numeric_limits<int64_t>::max();
+			} else {
+				value = std::stoi(valueStr);
+			}
+
+			return Term(Term::CONSTANT, value);
+		} else {
+			return loadExpression(p, lexer, gram, *i);
+		}
+	} else if (token.type == gram.EXPRESSION3 or token.type == gram.EXPRESSION4) {
+		Expression result;
+
+		result.operators.push_back(loadOperator(lexer, *i));
+		i++;
+
+		Term term = loadExpression(p, lexer, gram, *i);
+		result.terms.push_back(term);
+		if (term.type == Term::EXPRESSION) {
+			p->expressions[term.value].parents.insert(p->expressions.size());
+		} else if (term.type == Term::RESOURCE) {
+			p->resources[term.value].parents.insert(p->expressions.size());
+		}
+		p->expressions.push_back(result);
+		return Term(Term::EXPRESSION, p->expressions.size()-1);
+	} else {
+		Expression result;
+		Term term = loadExpression(p, lexer, gram, *i);
+		result.terms.push_back(term);
+		if (term.type == Term::EXPRESSION) {
+			p->expressions[term.value].parents.insert(p->expressions.size());
+		} else if (term.type == Term::RESOURCE) {
+			p->resources[term.value].parents.insert(p->expressions.size());
+		}
+		i++;
+		
+		while (i != token.tokens.end()) {
+			result.operators.push_back(loadOperator(lexer, *i));
+			i++;
+
+			term = loadExpression(p, lexer, gram, *i);
+			result.terms.push_back(term);
+			if (term.type == Term::EXPRESSION) {
+				p->expressions[term.value].parents.insert(p->expressions.size());
+			} else if (term.type == Term::RESOURCE) {
+				p->resources[term.value].parents.insert(p->expressions.size());
+			}
+			i++;
+		}
+
+		p->expressions.push_back(result);
+		return Term(Term::EXPRESSION, p->expressions.size()-1);
+	}
 }
 
 bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {

@@ -74,6 +74,8 @@ struct Expression
 	std::vector<int32_t> operators;
 	std::set<int32_t> parents;
 	std::vector<Term> terms;
+
+	static std::string opStr(int32_t);
 };
 
 struct Process

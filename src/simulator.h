@@ -23,11 +23,12 @@ struct Status
 	std::vector<int64_t> values;
 
 	int64_t getValue(Term term) const;
+	void print(const Process &process, Term term) const;
 
 	bool step(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);
 	bool satisfies(const std::map<int32_t, Term> &task) const;
-	bool satisfies(const std::vector<Term> &constraints) const;
+	bool satisfies(const Process &process, const std::vector<Term> &constraints) const;
 };
 
 struct Simulator

@@ -14,6 +14,8 @@ Status::Status(const Process &process) {
 	for (auto i = process.start.begin(); i != process.start.end(); i++) {
 		this->curr.insert(std::pair<int32_t, int64_t>(i->first, getValue(i->second)));
 	}
+	
+	evaluate(process, exprs);
 }
 
 Status::Status(const Status &copy) {
@@ -40,7 +42,45 @@ int64_t Status::getValue(Term term) const {
 	}
 }
 
+void Status::print(const Process &process, Term term) const {
+	if (term.type == Term::RESOURCE) {
+		auto i = curr.find(term.value);
+		if (i == curr.end()) {
+			printf("%s:null", process.resources[term.value].name.c_str());
+		} else {
+			printf("%s:%ld", process.resources[term.value].name.c_str(), i->second);
+		}
+	} else if (term.type == Term::EXPRESSION) {
+		const Expression &expr = process.expressions[term.value];
+		if (expr.terms.size() == 1) {
+			printf("(");
+			if (expr.operators.size() > 0) {
+				if (expr.operators[0] == Expression::NOT) {
+					printf("!");
+				} else if (expr.operators[0] == Expression::NEG) {
+					printf("-");
+				}
+			}
+
+			print(process, expr.terms[0]);
+			printf("):%ld", values[term.value]);
+		} else {
+			printf("(");
+			for (size_t i = 0; i < expr.terms.size(); i++) {
+				if (i > 0) {
+					printf("%s", Expression::opStr(expr.operators[i-1]).c_str());
+				}
+				print(process, expr.terms[i]);
+			}
+			printf("):%ld\n", values[term.value]);
+		}
+	} else {
+		printf("%ld", term.value);
+	}
+}
+
 bool Status::step(const Process &process, int32_t taskId) {
+	printf("Step %d\n", taskId);
 	std::set<int32_t> exprs;
 
 	auto i = curr.begin();
@@ -95,6 +135,10 @@ bool Status::step(const Process &process, int32_t taskId) {
 		j++;
 	}
 
+	for (auto i = curr.begin(); i != curr.end(); i++) {
+		printf("%s: %ld\n", process.resources[i->first].name.c_str(), i->second);
+	}
+
 	evaluate(process, exprs);
 
 	return true;
@@ -108,6 +152,7 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 		const Expression &expr = process.expressions[*exprId];
 
 		int64_t value = getValue(expr.terms[0]);
+		print(process, expr.terms[0]);
 		if (expr.terms.size() == 1) {
 			switch (expr.operators[0]) {
 				case Expression::NOT: value = (int64_t)(not value); break;
@@ -116,6 +161,8 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 		} else {
 			for (size_t i = 1; i < expr.terms.size(); i++) {
 				int64_t next = getValue(expr.terms[i]);
+				printf("%s", Expression::opStr(expr.operators[i-1]).c_str());
+				print(process, expr.terms[i]);
 				switch (expr.operators[i-1]) {
 					case Expression::AND: value = (int64_t)(value and next); break;
 					case Expression::OR: value = (int64_t)(value or next); break;
@@ -133,6 +180,7 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 				}
 			}
 		}
+		printf("\n");
 
 		if (*exprId >= (int32_t)values.size()) {
 			values.resize(*exprId+1, 0);
@@ -175,9 +223,11 @@ bool Status::satisfies(const std::map<int32_t, Term> &task) const {
 	return true;
 }
 
-bool Status::satisfies(const std::vector<Term> &constraints) const {
+bool Status::satisfies(const Process &process, const std::vector<Term> &constraints) const {
 	for (auto i = constraints.begin(); i != constraints.end(); i++) {
-		printf("constraint %ld: %ld\n", i-constraints.begin(), getValue(*i));
+		printf("constraint %ld: ", i-constraints.begin());
+		print(process, *i);
+		printf("\n");
 		if (getValue(*i) == 0) {
 			return false;
 		}
@@ -208,7 +258,7 @@ void Simulator::run(const Process &process) {
 				printf("checking task %lu\n", taskId);
 				Status choice = status;
 				choice.schedule.push_back(taskId);
-				if (choice.step(process, taskId) and choice.satisfies(process.constraints)) {
+				if (choice.step(process, taskId) and choice.satisfies(process, process.constraints)) {
 					printf("success\n");
 					// TODO(nbingham) check if seen
 					// TODO(nbingham) check against min

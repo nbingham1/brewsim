@@ -1,5 +1,24 @@
 #include "task.h"
 
+std::string Expression::opStr(int32_t op) {
+	switch (op) {
+		case Expression::AND: return " and ";
+		case Expression::OR: return " or ";
+		case Expression::LT: return " < ";
+		case Expression::GT: return " > ";
+		case Expression::LE: return " <= ";
+		case Expression::GE: return " >= ";
+		case Expression::EQ: return " == ";
+		case Expression::NE: return " != ";
+		case Expression::ADD: return " + ";
+		case Expression::SUB: return " - ";
+		case Expression::MUL: return " * ";
+		case Expression::DIV: return " / ";
+		case Expression::MOD: return " %% ";
+	}
+	return " . ";
+}
+
 Resource::Resource(std::string name) {
 	this->name = name;
 }

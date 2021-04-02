@@ -25,6 +25,7 @@ struct order_t
 	int32_t EXPRESSION4;
 	int32_t EXPRESSION5;
 	int32_t INTEGER;
+	int32_t FUNCTION;
 
 	void load(grammar_t &grammar);
 };

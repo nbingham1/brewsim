@@ -12,9 +12,12 @@ expression1 = expression2 (_ ("\+" | "-") _ expression2)*;
 expression2 = expression3 (_ ("\*" | "/" | "%") _ expression3)*;
 expression3 = ("not" _)? expression4;
 expression4 = ("-" _)? expression5;
-expression5 = instance | integer | ~"\(" _ expression _ ~"\)";
+expression5 = ~"\(" _ expression _ ~"\)" | integer | function | instance;
+function = 
+	(("abs" | "sum" | "psum") _ ~"\(" _ expression _ ~"\)") |
+	(("min" | "max" | "log" | "pow" | "rsum") _ ~"\(" _ expression _ ~"," _ expression _ ~"\)");
 
-integer = "[0-9]+";
+integer = "[0-9]+|\+inf";
 text = "\"([^\"\\]|\\.)*\"";
 instance = "[_a-zA-Z][_a-zA-Z0-9]*";
 _ ~= "[ \t\n\r]*";

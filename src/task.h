@@ -68,7 +68,15 @@ struct Expression
 		SUB = 11,
 		MUL = 12,
 		DIV = 13,
-		MOD = 14
+		MOD = 14,
+		ABS = 15,
+		SUM = 16,
+		PSUM = 17,
+		MIN = 18,
+		MAX = 19,
+		LOG = 20,
+		POW = 21,
+		RSUM = 22
 	};
 
 	std::vector<int32_t> operators;

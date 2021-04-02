@@ -75,8 +75,7 @@ struct Expression
 		MIN = 18,
 		MAX = 19,
 		LOG = 20,
-		POW = 21,
-		RSUM = 22
+		POW = 21
 	};
 
 	std::vector<int32_t> operators;

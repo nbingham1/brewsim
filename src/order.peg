@@ -15,9 +15,9 @@ expression4 = ("-" _)? expression5;
 expression5 = ~"\(" _ expression _ ~"\)" | integer | function | instance;
 function = 
 	(("abs" | "sum" | "psum") _ ~"\(" _ expression _ ~"\)") |
-	(("min" | "max" | "log" | "pow" | "rsum") _ ~"\(" _ expression _ ~"," _ expression _ ~"\)");
+	(("min" | "max" | "log" | "pow") _ ~"\(" _ expression _ ~"," _ expression _ ~"\)");
 
-integer = "[0-9]+|\+inf";
+integer = "([0-9]+|inf)";
 text = "\"([^\"\\]|\\.)*\"";
 instance = "[_a-zA-Z][_a-zA-Z0-9]*";
 _ ~= "[ \t\n\r]*";

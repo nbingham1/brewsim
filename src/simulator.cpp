@@ -1,4 +1,5 @@
 #include "simulator.h"
+#include <math.h>
 
 Status::Status() {
 }
@@ -151,14 +152,38 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 	for (auto exprId = exprs.begin(); exprId != exprs.end(); exprId++) {
 		const Expression &expr = process.expressions[*exprId];
 
-		int64_t value = getValue(expr.terms[0]);
+		int64_t value = 0;
 		print(process, expr.terms[0]);
-		if (expr.terms.size() == 1) {
+		if (expr.operators.size() == 1 and expr.operators[0] >= Expression::ABS) {
+			int64_t operands[2] = {0, 0};
+
+			value = getValue(Term(Term::EXPRESSION, *exprId));
+			printf("%s(", Expression::opStr(expr.operators[0]).c_str());
+			for (size_t i = 0; i < expr.terms.size() and i < 2; i++) {
+				if (i != 0) {
+					printf(", ");
+				}
+				operands[i] = getValue(expr.terms[i]);
+				print(process, expr.terms[i]);
+			}
+			printf(")");
+			switch (expr.operators[0]) {
+				case Expression::ABS: value = operands[0] < 0 ? -operands[0] : operands[0]; break;
+				case Expression::SUM: value += operands[0]; break;
+				case Expression::PSUM: value += operands[0]; break; // TODO(nbingham)
+				case Expression::MIN: value = operands[0] < operands[1] ? operands[0] : operands[1]; break;
+				case Expression::MAX: value = operands[0] > operands[1] ? operands[0] : operands[1]; break;
+				case Expression::LOG: value = (int64_t)(log(operands[1])/log(operands[0])); break;
+				case Expression::POW: value = (int64_t)pow(operands[0], operands[1]); break;
+			}
+		} else if (expr.terms.size() == 1) {
+			value = getValue(expr.terms[0]);
 			switch (expr.operators[0]) {
 				case Expression::NOT: value = (int64_t)(not value); break;
 				case Expression::NEG: value = -value; break;
 			}
 		} else {
+			value = getValue(expr.terms[0]);
 			for (size_t i = 1; i < expr.terms.size(); i++) {
 				int64_t next = getValue(expr.terms[i]);
 				printf("%s", Expression::opStr(expr.operators[i-1]).c_str());

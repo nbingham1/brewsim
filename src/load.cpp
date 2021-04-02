@@ -46,8 +46,6 @@ int32_t loadOperator(lexer_t &lexer, const token_t &token) {
 		return Expression::LOG;
 	} else if (op == "pow") {
 		return Expression::POW;
-	} else if (op == "rsum") {
-		return Expression::RSUM;
 	} else {
 		return -1;
 		// TODO(nbingham) flag an error
@@ -88,14 +86,16 @@ Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token
 		} else if (i->type == gram.INTEGER) {
 			std::string valueStr = lexer.read(i->begin, i->end);
 			int64_t value = 0;
-			if (valueStr == "+inf") {
+			if (valueStr == "inf") {
 				value = std::numeric_limits<int64_t>::max();
 			} else {
 				value = std::stoi(valueStr);
 			}
 
 			return Term(Term::CONSTANT, value);
-		} else {
+		} else if (i->type == gram.FUNCTION) {
+			return loadFunction(p, lexer, gram, *i);
+		}	else {
 			return loadExpression(p, lexer, gram, *i);
 		}
 	} else if (token.type == gram.EXPRESSION3 or token.type == gram.EXPRESSION4) {

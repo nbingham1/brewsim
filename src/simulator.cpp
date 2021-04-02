@@ -245,6 +245,9 @@ void Simulator::run(const Process &process) {
 	this->stack.clear();
 	this->stack.push_back(Status(process));
 
+	minima.resize(process.minimize.size());
+	maxima.resize(process.maximize.size());
+
 	while (stack.size() > 0) {
 		printf("stack size: %lu\n", stack.size());
 		Status status = std::move(stack.back());
@@ -252,7 +255,17 @@ void Simulator::run(const Process &process) {
 
 		if (status.satisfies(process.end)) {
 			printf("satisfies end condition\n");
-			// TODO(nbingham) check against min
+			for (size_t i = 0; i < process.minimize.size(); i++) {
+				if (minima[i].schedule.size() == 0 or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i])) {
+					minima[i] = status;
+				}
+			}
+			
+			for (size_t i = 0; i < process.maximize.size(); i++) {
+				if (maxima[i].schedule.size() == 0 or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i])) {
+					maxima[i] = status;
+				}
+			}
 		} else {
 			for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
 				printf("checking task %lu\n", taskId);
@@ -261,8 +274,18 @@ void Simulator::run(const Process &process) {
 				if (choice.step(process, taskId) and choice.satisfies(process, process.constraints)) {
 					printf("success\n");
 					// TODO(nbingham) check if seen
-					// TODO(nbingham) check against min
-					stack.push_back(choice);
+					bool found = false;
+					for (size_t i = 0; not found and i < process.minimize.size(); i++) {
+						found = found or minima[i].schedule.size() == 0 or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i]);
+					}
+					
+					for (size_t i = 0; not found and i < process.maximize.size(); i++) {
+						found = found or maxima[i].schedule.size() == 0 or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i]);
+					}
+
+					if (found) {
+						stack.push_back(choice);
+					}
 				} else {
 					printf("fail\n");
 				}

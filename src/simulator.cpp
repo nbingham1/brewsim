@@ -197,7 +197,14 @@ int64_t Status::getValue(Term term) const {
 	}
 }
 
-int64_t Status::psum(const Process &process, Term term, int64_t next) const {
+int64_t Status::sum(Term last, Term term) const {
+	if (prev != nullptr) {
+		return prev->getValue(last) + (prev->getValue(term) - getValue(term));
+	}
+	return 0;
+}
+
+int64_t Status::psum(const Process &process, Term last, Term term) const {
 	std::map<int32_t, int64_t> need;
 
 	Step *curr = prev;
@@ -206,14 +213,17 @@ int64_t Status::psum(const Process &process, Term term, int64_t next) const {
 		start = curr;
 		curr = curr->prev;
 	}
-
-	if (prev == nullptr or start == nullptr) {
-		return -1;
-	} else {
-		int64_t value0 = prev->getValue(term);
-		int64_t value1 = start->getValue(term) + next;
-		return value1 > value0 ? value1 : value0;
-	}	
+	
+	int64_t value0 = 0;
+	int64_t value1 = 0;
+	if (prev != nullptr) {
+		value0 = prev->getValue(last);
+		value1 = prev->getValue(term) - getValue(term);
+	}
+	if (start != nullptr) {
+		value1 += start->getValue(last);
+	}
+	return value1 > value0 ? value1 : value0;
 }
 
 void Status::print(const Process &process, Term term) const {
@@ -389,7 +399,6 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 		if (expr.operators.size() == 1 and expr.operators[0] >= Expression::ABS) {
 			int64_t operands[2] = {0, 0};
 
-			value = getValue(Term(Term::EXPRESSION, *exprId));
 			//printf("%s(", Expression::opStr(expr.operators[0]).c_str());
 			for (size_t i = 0; i < expr.terms.size() and i < 2; i++) {
 				if (i != 0) {
@@ -401,8 +410,8 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 			//printf(")");
 			switch (expr.operators[0]) {
 				case Expression::ABS: value = operands[0] < 0 ? -operands[0] : operands[0]; break;
-				case Expression::SUM: value += operands[0]; break;
-				case Expression::PSUM: value = psum(process, expr.terms[0], operands[0]); break;
+				case Expression::SUM: value = sum(Term(Term::EXPRESSION, *exprId), expr.terms[0]); break;
+				case Expression::PSUM: value = psum(process, Term(Term::EXPRESSION, *exprId), expr.terms[0]); break;
 				case Expression::MIN: value = operands[0] < operands[1] ? operands[0] : operands[1]; break;
 				case Expression::MAX: value = operands[0] > operands[1] ? operands[0] : operands[1]; break;
 				case Expression::LOG: value = (int64_t)(log(operands[1])/log(operands[0])); break;

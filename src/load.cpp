@@ -60,7 +60,14 @@ Term loadFunction(Process *p, lexer_t &lexer, const order_t &gram, const token_t
 	i++;
 
 	while (i != token.tokens.end()) {
-		result.terms.push_back(loadExpression(p, lexer, gram, *i));
+		Term term = loadExpression(p, lexer, gram, *i);
+		result.terms.push_back(term);
+		if (term.type == Term::EXPRESSION) {
+			p->expressions[term.value].parents.insert(p->expressions.size());
+		} else if (term.type == Term::RESOURCE) {
+			p->resources[term.value].parents.insert(p->expressions.size());
+		}
+
 		i++;
 	}
 	

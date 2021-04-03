@@ -65,5 +65,5 @@ task "cook steak" {
 }
 
 have 1 gas, 1 person, inf seconds, 1 salt, 1 pepper, 4 steak, 15 garlicCloves, 1 bakingSheet, 1 coldOven, 4 tbspOliveOil, 1 foodProcessor, 1 pan;
-need seasonedSteak >= 4;
+need cookedSteak >= 4;
 let duration = psum(seconds);	

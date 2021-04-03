@@ -50,7 +50,8 @@ struct Status
 	void print(const Process &process, Term term) const;
 	void print(const Process &process) const;
 
-	int64_t psum(const Process &process, Term term, int64_t next) const;
+	int64_t sum(Term last, Term term) const;
+	int64_t psum(const Process &process, Term last, Term term) const;
 
 	bool step(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);

@@ -114,6 +114,28 @@ bool Step::mergeAndCheck(const Process &process, std::map<int32_t, int64_t> *nee
 	return i == need->end() and j == requirements.end();
 }
 
+void Step::print(const Process &process) const {
+	for (auto i = process.variables.begin(); i != process.variables.end(); i++) {
+		if (i != process.variables.begin()) {
+			printf(", ");
+		}
+		printf("%s = %lld", i->first.c_str(), getValue(i->second));
+	}
+	if (process.variables.size() != 0) {
+		printf("\n");
+	}
+	printf("%s\n", process.tasks[taskId].name.c_str());
+	for (auto i = have.begin(); i != have.end(); i++) {
+		if (i != have.begin()) {
+			printf(", ");
+		}
+		printf("%lld %s", i->second, process.resources[i->first].name.c_str());
+	}
+	if (have.size() != 0) {
+		printf("\n");
+	}
+}
+
 int64_t Status::psum(const Process &process, Term term, int64_t next) const {
 	std::map<int32_t, int64_t> need;
 
@@ -226,9 +248,56 @@ void Status::print(const Process &process, Term term) const {
 
 void Status::print(const Process &process) const
 {
+	if (process.minimize.size() != 0) {
+		printf("min: ");
+		for (auto i = process.minimize.begin(); i != process.minimize.end(); i++) {
+			if (i != process.minimize.begin()) {
+				printf(", ");
+			}
+			printf("%lld", getValue(*i));
+		}
+		printf("\n");
+	}
+
+	if (process.maximize.size() != 0) {
+		printf("max: ");
+		for (auto i = process.maximize.begin(); i != process.maximize.end(); i++) {
+			if (i != process.maximize.begin()) {
+				printf(", ");
+			}
+			printf("%lld", getValue(*i));
+		}
+		printf("\n");
+	}
+
+	for (auto i = process.variables.begin(); i != process.variables.end(); i++) {
+		if (i != process.variables.begin()) {
+			printf(", ");
+		}
+		printf("%s = %lld", i->first.c_str(), getValue(i->second));
+	}
+	if (process.variables.size() != 0) {
+		printf("\n");
+	}
+
+	for (auto i = have.begin(); i != have.end(); i++) {
+		if (i != have.begin()) {
+			printf(", ");
+		}
+		printf("%lld %s", i->second, process.resources[i->first].name.c_str());
+	}
+	if (have.size() != 0) {
+		printf("\n");
+	}
+
+	if (process.variables.size() != 0 or have.size() != 0) {
+		printf("\n");
+	}
+
 	Step *curr = prev;
 	while (curr != nullptr) {
-		printf("%s\n", process.tasks[curr->taskId].name.c_str());
+		curr->print(process);
+		printf("\n");
 		curr = curr->prev;
 	}
 }
@@ -256,8 +325,12 @@ bool Status::step(const Process &process, int32_t taskId) {
 			if (j->second.type == Utilization::CONSUME or j->second.type == Utilization::PRODUCE) {
 				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 			}
+			auto tmp = i;
 			i++;
 			j++;
+			if (tmp->second == 0) {
+				have.erase(tmp);
+			}
 		} else if (i->first < j->first) {
 			i++;
 		} else {

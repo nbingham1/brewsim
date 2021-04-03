@@ -25,6 +25,8 @@ struct Step
 
 	int64_t getValue(Term term) const;
 	bool mergeAndCheck(const Process &process, std::map<int32_t, int64_t> *need);
+
+	void print(const Process &process) const;
 };
 
 struct Status

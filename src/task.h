@@ -96,10 +96,10 @@ struct Process
 	std::vector<Term> constraints;
 	std::vector<Term> minimize;
 	std::vector<Term> maximize;
+	Term done;
 
 	// resourceId -> amount
 	std::map<int32_t, Term> start;
-	std::map<int32_t, Term> end;
 
 	int32_t getResourceId(std::string resource);
 };

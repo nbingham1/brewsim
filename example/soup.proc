@@ -13,6 +13,6 @@ task "stir the soup" {
 }
 
 have 1 pot, 4 burner, 1 soupCan, inf seconds, 1 person, 1 spoon;
-need 1 stirredHotSoup;
+need stirredHotSoup >= 1;
 min psum(seconds);
 min person;

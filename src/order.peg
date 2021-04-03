@@ -1,7 +1,8 @@
-order = (_ (resource | variable | select | constraint | task))+ _ ~"\0";
-resource = ("have" | "need") _ expression _ instance (_ ~"," _ expression _ instance)* _ ~";";
+order = (_ (have | need | variable | select | constraint | task))+ _ ~"\0";
+have = ~"have" _ expression _ instance (_ ~"," _ expression _ instance)* _ ~";";
 variable = ~"let" _ instance _ ~"=" _ expression _ ~";";
 select = ("min" | "max") _ expression _ ~";";
+need = ~"need" _ expression _ ~";";
 constraint = ~"keep" _ expression _ ~";";
 task = ~"task" _ text _ ~"{" (_ effect)+ _ ~"}";
 effect = ("uses" | "locks" | "consumes" | "produces") _ expression _ instance (_ ~"," _ expression _ instance)* _ ~";";

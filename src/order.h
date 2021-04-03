@@ -9,7 +9,8 @@ struct order_t
 {
 	int32_t ORDER;
 	int32_t _;
-	int32_t RESOURCE;
+	int32_t HAVE;
+	int32_t NEED;
 	int32_t VARIABLE;
 	int32_t SELECT;
 	int32_t CONSTRAINT;

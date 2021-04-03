@@ -50,7 +50,6 @@ struct Status
 
 	bool step(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);
-	bool satisfies(const std::map<int32_t, Term> &task) const;
 	bool satisfies(const Process &process, const std::vector<Term> &constraints) const;
 
 };

@@ -369,38 +369,6 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 	}
 }
 
-bool Status::satisfies(const std::map<int32_t, Term> &task) const {
-	auto i = have.begin();
-	auto j = task.begin();
-	while (i != have.end() and j != task.end()) {
-		if (i->first == j->first) {
-			if (i->second < getValue(j->second)) {
-				return false;
-			}
-			
-			i++;
-			j++;
-		} else if (i->first < j->first) {
-			i++;
-		} else {
-			if (getValue(j->second) > 0) {
-				return false;
-			}
-
-			j++;
-		}
-	}
-
-	while (j != task.end()) {
-		if (getValue(j->second) > 0) {
-			return false;
-		}
-		j++;
-	}
-
-	return true;
-}
-
 bool Status::satisfies(const Process &process, const std::vector<Term> &constraints) const {
 	for (auto i = constraints.begin(); i != constraints.end(); i++) {
 		printf("constraint %ld: ", i-constraints.begin());
@@ -449,7 +417,7 @@ void Simulator::run(const Process &process) {
 		Status status = std::move(stack.back());
 		stack.pop_back();
 
-		if (status.satisfies(process.end)) {
+		if (status.getValue(process.done) != 0) {
 			printf("satisfies end condition\n");
 			bool found = false;
 			for (size_t i = 0; i < process.minimize.size(); i++) {

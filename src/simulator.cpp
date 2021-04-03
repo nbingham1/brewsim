@@ -232,7 +232,7 @@ void Status::print(const Process &process, Term term) const {
 		if (i == have.end()) {
 			printf("%s:null", process.resources[term.value].name.c_str());
 		} else {
-			printf("%s:%ld", process.resources[term.value].name.c_str(), i->second);
+			printf("%s:%lld", process.resources[term.value].name.c_str(), i->second);
 		}
 	} else if (term.type == Term::EXPRESSION) {
 		const Expression &expr = process.expressions[term.value];
@@ -247,7 +247,7 @@ void Status::print(const Process &process, Term term) const {
 			}
 
 			print(process, expr.terms[0]);
-			printf("):%ld", values[term.value]);
+			printf("):%lld", values[term.value]);
 		} else {
 			printf("(");
 			for (size_t i = 0; i < expr.terms.size(); i++) {
@@ -256,10 +256,10 @@ void Status::print(const Process &process, Term term) const {
 				}
 				print(process, expr.terms[i]);
 			}
-			printf("):%ld\n", values[term.value]);
+			printf("):%lld\n", values[term.value]);
 		}
 	} else {
-		printf("%ld", term.value);
+		printf("%lld", term.value);
 	}
 }
 
@@ -379,7 +379,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 	}
 
 	/*for (auto i = have.begin(); i != have.end(); i++) {
-		printf("%s: %ld\n", process.resources[i->first].name.c_str(), i->second);
+		printf("%s: %lld\n", process.resources[i->first].name.c_str(), i->second);
 	}*/
 
 	evaluate(process, exprs);
@@ -459,7 +459,7 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 
 bool Status::satisfies(const Process &process, const std::vector<Term> &constraints) const {
 	for (auto i = constraints.begin(); i != constraints.end(); i++) {
-		//printf("constraint %ld: ", i-constraints.begin());
+		//printf("constraint %lld: ", i-constraints.begin());
 		//print(process, *i);
 		//printf("\n");
 		if (getValue(*i) == 0) {
@@ -515,8 +515,9 @@ bool Simulator::run(const Process &process) {
 	minima.resize(process.minimize.size());
 	maxima.resize(process.maximize.size());
 
+	int64_t count = 0;
 	while (stack.size() > 0) {
-		printf("%lu\r", stack.size());
+		printf("\rstack %llu step %lld", stack.size(), count);
 		fflush(stdout);
 		Status status = std::move(stack.back());
 		stack.pop_back();
@@ -524,6 +525,7 @@ bool Simulator::run(const Process &process) {
 		if (status.getValue(process.done) != 0) {
 			if (process.minimize.size() == 0 and process.maximize.size() == 0) {
 				minima.push_back(status);
+				printf("\r                    \r");
 				return true;
 			} else {
 				bool found = false;
@@ -569,6 +571,8 @@ bool Simulator::run(const Process &process) {
 			}
 		}
 	}
+
+	printf("\r                    \r");
 
 	return success;
 }

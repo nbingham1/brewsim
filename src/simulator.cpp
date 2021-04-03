@@ -224,6 +224,15 @@ void Status::print(const Process &process, Term term) const {
 	}
 }
 
+void Status::print(const Process &process) const
+{
+	Step *curr = prev;
+	while (curr != nullptr) {
+		printf("%s\n", process.tasks[curr->taskId].name.c_str());
+		curr = curr->prev;
+	}
+}
+
 bool Status::step(const Process &process, int32_t taskId) {
 	printf("Step %d\n", taskId);
 	std::set<int32_t> exprs;

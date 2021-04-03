@@ -20,6 +20,17 @@ int main(int argc, char **argv)
 			load(&proc, lexer, order, result.tree);
 			Simulator sim;
 			sim.run(proc);
+			printf("\n");
+
+			for (auto i = sim.minima.begin(); i != sim.minima.end(); i++) {
+				i->print(proc);
+				printf("\n");
+			}
+
+			for (auto i = sim.maxima.begin(); i != sim.maxima.end(); i++) {
+				i->print(proc);
+				printf("\n");
+			}
 		} else {
 			for (auto msg : result.msgs) {
 				std::cout << msg << std::endl;

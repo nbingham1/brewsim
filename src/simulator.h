@@ -44,7 +44,8 @@ struct Status
 	void drop();
 	int64_t getValue(Term term) const;
 	void print(const Process &process, Term term) const;
-	
+	void print(const Process &process) const;
+
 	int64_t psum(const Process &process, Term term, int64_t next) const;
 
 	bool step(const Process &process, int32_t taskId);

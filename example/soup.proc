@@ -13,5 +13,6 @@ task "stir the soup" {
 }
 
 have 1 pot, 4 burner, 1 soupCan, inf seconds, 1 person, 1 spoon;
+let duration = sum(seconds);
 need stirredHotSoup >= 1;
-min psum(seconds);
+min duration;

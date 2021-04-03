@@ -303,7 +303,6 @@ void Status::print(const Process &process) const
 }
 
 bool Status::step(const Process &process, int32_t taskId) {
-	printf("Step %d\n", taskId);
 	std::set<int32_t> exprs;
 
 	auto i = have.begin();
@@ -312,7 +311,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 		if (i->first == j->first) {
 			int64_t amount = getValue(j->second.amount);
 			if (j->second.type != Utilization::PRODUCE && i->second < amount) {
-				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), i->second, amount);
+				//printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), i->second, amount);
 				return false;
 			}
 
@@ -340,7 +339,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 				
 				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 			} else if (amount > 0) {
-				printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
+				//printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
 				return false;
 			}
 
@@ -355,16 +354,16 @@ bool Status::step(const Process &process, int32_t taskId) {
 
 			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 		} else if (amount > 0) {
-			printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
+			//printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
 			return false;
 		}
 
 		j++;
 	}
 
-	for (auto i = have.begin(); i != have.end(); i++) {
+	/*for (auto i = have.begin(); i != have.end(); i++) {
 		printf("%s: %ld\n", process.resources[i->first].name.c_str(), i->second);
-	}
+	}*/
 
 	evaluate(process, exprs);
 
@@ -379,20 +378,20 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 		const Expression &expr = process.expressions[*exprId];
 
 		int64_t value = 0;
-		print(process, expr.terms[0]);
+		//print(process, expr.terms[0]);
 		if (expr.operators.size() == 1 and expr.operators[0] >= Expression::ABS) {
 			int64_t operands[2] = {0, 0};
 
 			value = getValue(Term(Term::EXPRESSION, *exprId));
-			printf("%s(", Expression::opStr(expr.operators[0]).c_str());
+			//printf("%s(", Expression::opStr(expr.operators[0]).c_str());
 			for (size_t i = 0; i < expr.terms.size() and i < 2; i++) {
 				if (i != 0) {
-					printf(", ");
+					//printf(", ");
 				}
 				operands[i] = getValue(expr.terms[i]);
-				print(process, expr.terms[i]);
+				//print(process, expr.terms[i]);
 			}
-			printf(")");
+			//printf(")");
 			switch (expr.operators[0]) {
 				case Expression::ABS: value = operands[0] < 0 ? -operands[0] : operands[0]; break;
 				case Expression::SUM: value += operands[0]; break;
@@ -412,8 +411,8 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 			value = getValue(expr.terms[0]);
 			for (size_t i = 1; i < expr.terms.size(); i++) {
 				int64_t next = getValue(expr.terms[i]);
-				printf("%s", Expression::opStr(expr.operators[i-1]).c_str());
-				print(process, expr.terms[i]);
+				//printf("%s", Expression::opStr(expr.operators[i-1]).c_str());
+				//print(process, expr.terms[i]);
 				switch (expr.operators[i-1]) {
 					case Expression::AND: value = (int64_t)(value and next); break;
 					case Expression::OR: value = (int64_t)(value or next); break;
@@ -431,7 +430,7 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 				}
 			}
 		}
-		printf("\n");
+		//printf("\n");
 
 		if (*exprId >= (int32_t)values.size()) {
 			values.resize(*exprId+1, 0);
@@ -444,9 +443,9 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 
 bool Status::satisfies(const Process &process, const std::vector<Term> &constraints) const {
 	for (auto i = constraints.begin(); i != constraints.end(); i++) {
-		printf("constraint %ld: ", i-constraints.begin());
-		print(process, *i);
-		printf("\n");
+		//printf("constraint %ld: ", i-constraints.begin());
+		//print(process, *i);
+		//printf("\n");
 		if (getValue(*i) == 0) {
 			return false;
 		}
@@ -486,12 +485,13 @@ void Simulator::run(const Process &process) {
 	maxima.resize(process.maximize.size());
 
 	while (stack.size() > 0) {
-		printf("stack size: %lu\n", stack.size());
+		printf("%lu\r", stack.size());
+		fflush(stdout);
 		Status status = std::move(stack.back());
 		stack.pop_back();
 
 		if (status.getValue(process.done) != 0) {
-			printf("satisfies end condition\n");
+			//printf("done\n");
 			bool found = false;
 			for (size_t i = 0; i < process.minimize.size(); i++) {
 				if (minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i])) {
@@ -512,13 +512,14 @@ void Simulator::run(const Process &process) {
 			}
 		} else {
 			for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
-				printf("checking task %lu\n", taskId);
+				//printf("checking task %lu\n", taskId);
 				Status choice = status;
 				choice.prev = new Step(choice, taskId);
+				//choice.prev->print(process);
 				if (choice.step(process, taskId) and choice.satisfies(process, process.constraints)) {
-					printf("success\n");
+					//printf("success\n");
 					// TODO(nbingham) check if seen
-					bool found = false;
+					bool found = minima.size() == 0 and maxima.size() == 0;
 					for (size_t i = 0; not found and i < process.minimize.size(); i++) {
 						found = found or minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i]);
 					}
@@ -533,9 +534,10 @@ void Simulator::run(const Process &process) {
 						choice.drop();
 					}
 				} else {
-					printf("fail\n");
+					//printf("violated constraints\n");
 					choice.drop();
 				}
+				//printf("\n");
 			}
 		}
 	}

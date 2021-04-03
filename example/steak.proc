@@ -1,0 +1,69 @@
+task "preheat oven to 350" {
+	uses 1 gas;
+	uses 1 person;
+	consumes 1 coldOven;
+	produces 1 hotOven;
+	consumes 5*60 seconds;
+}
+
+task "put garlic on baking sheet" {
+	locks 1 person;
+	consumes 15 garlicCloves;
+	consumes 1 bakingSheet;
+	consumes 3 seconds;
+	produces 1 bakingSheetWithGarlic;
+}
+
+task "drizzle olive oil" {
+	locks 1 person;
+	consumes 1 bakingSheetWithGarlic;
+	consumes 1 tbspOliveOil;
+	consumes 2 seconds;
+	produces 1 bakingSheetWithOiledGarlic;
+}
+
+task "bake garlic" {
+	uses 1 person;
+	uses 1 hotOven;
+	consumes 20*60 seconds;
+	consumes 1 bakingSheetWithOiledGarlic;
+	produces 1 hotBakingSheetWithCookedGarlic;
+}
+
+task "cool garlic" {
+	uses 1 person;
+	consumes 5*60 seconds;
+	consumes 1 hotBakingSheetWithCookedGarlic;
+	produces 1 bakingSheetWithCookedGarlic;
+}
+
+task "put garlic in food processor" {
+	consumes 2 tbspOliveOil;
+	uses 1 foodProcessor;
+	consumes 1 bakingSheetWithCookedGarlic;
+	produces 4 garlicPaste;
+	produces 1 bakingSheet;
+	consumes 10 seconds;
+	locks 1 person;
+}
+
+task "season steak" {
+	consumes 1 steak;
+	locks 1 salt;
+	locks 1 pepper;
+	consumes 1 garlicPaste;
+	locks 1 person;
+	produces 1 seasonedSteak;
+}
+
+task "cook steak" {
+	consumes 1 seasonedSteak;
+	consumes 10*60 seconds;
+	uses 1 pan;
+	uses 1 person;
+	produces 1 cookedSteak;
+}
+
+have 1 gas, 1 person, inf seconds, 1 salt, 1 pepper, 4 steak, 15 garlicCloves, 1 bakingSheet, 1 coldOven, 4 tbpsOliveOil;
+need seasonedSteak >= 4;
+let duration = psum(seconds);	

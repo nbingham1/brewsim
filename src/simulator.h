@@ -42,6 +42,8 @@ struct Status
 	std::map<int32_t, int64_t> have;
 
 	std::vector<int64_t> values;
+	std::string msg;
+	int64_t length;
 
 	void drop();
 	int64_t getValue(Term term) const;
@@ -53,7 +55,6 @@ struct Status
 	bool step(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);
 	bool satisfies(const Process &process, const std::vector<Term> &constraints) const;
-
 };
 
 struct Simulator
@@ -64,8 +65,10 @@ struct Simulator
 	std::vector<Status> stack;
 	std::vector<Status> minima;
 	std::vector<Status> maxima;
+	Status error;
 
+	bool optimizes(const Status &status, const Process &process) const;
 	void reset();
-	void run(const Process &process);
+	bool run(const Process &process);
 };
 

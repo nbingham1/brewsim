@@ -19,17 +19,21 @@ int main(int argc, char **argv)
 			Process proc;
 			load(&proc, lexer, order, result.tree);
 			Simulator sim;
-			sim.run(proc);
-			printf("\n");
-
-			for (auto i = sim.minima.begin(); i != sim.minima.end(); i++) {
-				i->print(proc);
+			if (sim.run(proc)) {
 				printf("\n");
-			}
 
-			for (auto i = sim.maxima.begin(); i != sim.maxima.end(); i++) {
-				i->print(proc);
-				printf("\n");
+				for (auto i = sim.minima.begin(); i != sim.minima.end(); i++) {
+					i->print(proc);
+					printf("\n");
+				}
+
+				for (auto i = sim.maxima.begin(); i != sim.maxima.end(); i++) {
+					i->print(proc);
+					printf("\n");
+				}
+			} else {
+				sim.error.print(proc);
+				std::cout << "error: " << sim.error.msg << std::endl;
 			}
 		} else {
 			for (auto msg : result.msgs) {

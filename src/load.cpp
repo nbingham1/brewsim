@@ -154,7 +154,7 @@ bool loadHave(Process *p, lexer_t &lexer, const order_t &gram, const token_t &to
 		int32_t index = p->getResourceId(name);
 		i++;
 
-		printf("have %d %ld\n", index, amount.value);
+		//printf("have %d %ld\n", index, amount.value);
 
 		p->start.insert(std::pair<int32_t, Term>(index, amount));
 	}
@@ -223,11 +223,11 @@ bool loadTask(Process *p, lexer_t &lexer, const order_t &gram, const token_t &to
 		i++;
 	}
 
-	printf("found task %s\n", result.name.c_str());
+	//printf("found task %s\n", result.name.c_str());
 	p->tasks.push_back(result);
-	for (auto r : result.requirements) {
+	/*for (auto r : result.requirements) {
 		printf("%d %ld\n", r.first, r.second.amount.value);
-	}
+	}*/
 
 	return true;
 }

@@ -136,31 +136,14 @@ void Step::print(const Process &process) const {
 	}
 }
 
-int64_t Status::psum(const Process &process, Term term, int64_t next) const {
-	std::map<int32_t, int64_t> need;
-
-	Step *curr = prev;
-	Step *start = nullptr;
-	while (curr != nullptr and curr->mergeAndCheck(process, &need)) {
-		start = curr;
-		curr = curr->prev;
-	}
-
-	if (prev == nullptr or start == nullptr) {
-		return -1;
-	} else {
-		int64_t value0 = prev->getValue(term);
-		int64_t value1 = start->getValue(term) + next;
-		return value1 > value0 ? value1 : value0;
-	}	
-}
-
 Status::Status() {
 	this->prev = nullptr;
+	this->length = 0;
 }
 
 Status::Status(const Process &process) {
 	this->prev = nullptr;
+	this->length = 0;
 
 	std::set<int32_t> exprs;
 	for (size_t i = 0; i < process.expressions.size(); i++) {
@@ -207,6 +190,25 @@ int64_t Status::getValue(Term term) const {
 	} else {
 		return term.value;
 	}
+}
+
+int64_t Status::psum(const Process &process, Term term, int64_t next) const {
+	std::map<int32_t, int64_t> need;
+
+	Step *curr = prev;
+	Step *start = nullptr;
+	while (curr != nullptr and curr->mergeAndCheck(process, &need)) {
+		start = curr;
+		curr = curr->prev;
+	}
+
+	if (prev == nullptr or start == nullptr) {
+		return -1;
+	} else {
+		int64_t value0 = prev->getValue(term);
+		int64_t value1 = start->getValue(term) + next;
+		return value1 > value0 ? value1 : value0;
+	}	
 }
 
 void Status::print(const Process &process, Term term) const {
@@ -311,7 +313,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 		if (i->first == j->first) {
 			int64_t amount = getValue(j->second.amount);
 			if (j->second.type != Utilization::PRODUCE && i->second < amount) {
-				//printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), i->second, amount);
+				msg = "not enough " + process.resources[j->first].name + " " + std::to_string(i->second) + " < " + std::to_string(amount);
 				return false;
 			}
 
@@ -339,7 +341,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 				
 				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 			} else if (amount > 0) {
-				//printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
+				msg = "not enough " + process.resources[j->first].name + " 0 < " + std::to_string(amount);
 				return false;
 			}
 
@@ -354,7 +356,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 
 			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 		} else if (amount > 0) {
-			//printf("not enough %s: %ld < %ld\n", process.resources[j->first].name.c_str(), 0l, amount);
+			msg = "not enough " + process.resources[j->first].name + " 0 < " + std::to_string(amount);
 			return false;
 		}
 
@@ -460,6 +462,19 @@ Simulator::~Simulator() {
 	reset();
 }
 
+bool Simulator::optimizes(const Status &status, const Process &process) const {
+	bool found = minima.size() == 0 and maxima.size() == 0;
+	for (size_t i = 0; not found and i < process.minimize.size(); i++) {
+		found = found or minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i]);
+	}
+	
+	for (size_t i = 0; not found and i < process.maximize.size(); i++) {
+		found = found or maxima[i].prev == nullptr or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i]);
+	}
+
+	return found;
+}
+
 void Simulator::reset() {
 	for (auto i = stack.begin(); i != stack.end(); i++) {
 		i->drop();
@@ -477,7 +492,9 @@ void Simulator::reset() {
 	maxima.clear();
 }
 
-void Simulator::run(const Process &process) {
+bool Simulator::run(const Process &process) {
+	bool success = false;
+
 	this->stack.clear();
 	this->stack.push_back(Status(process));
 
@@ -509,36 +526,28 @@ void Simulator::run(const Process &process) {
 
 			if (not found) {
 				status.drop();
+			} else {
+				success = true;
 			}
 		} else {
 			for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
-				//printf("checking task %lu\n", taskId);
 				Status choice = status;
 				choice.prev = new Step(choice, taskId);
-				//choice.prev->print(process);
-				if (choice.step(process, taskId) and choice.satisfies(process, process.constraints)) {
-					//printf("success\n");
+				choice.length += 1;
+				if (choice.step(process, taskId) and
+						choice.satisfies(process, process.constraints) and
+						optimizes(choice, process)) {
 					// TODO(nbingham) check if seen
-					bool found = minima.size() == 0 and maxima.size() == 0;
-					for (size_t i = 0; not found and i < process.minimize.size(); i++) {
-						found = found or minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i]);
-					}
-					
-					for (size_t i = 0; not found and i < process.maximize.size(); i++) {
-						found = found or maxima[i].prev == nullptr or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i]);
-					}
-
-					if (found) {
-						stack.push_back(choice);
-					} else {
-						choice.drop();
-					}
+					stack.push_back(choice);
+				} else if (choice.length > error.length) {
+					error.drop();
+					error = choice;
 				} else {
-					//printf("violated constraints\n");
 					choice.drop();
 				}
-				//printf("\n");
 			}
 		}
 	}
+
+	return success;
 }

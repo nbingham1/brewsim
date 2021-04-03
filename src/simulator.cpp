@@ -1,5 +1,6 @@
 #include "simulator.h"
 #include <math.h>
+#include <iostream>
 
 Step::Step() {
 	this->prev = nullptr;
@@ -186,7 +187,11 @@ int64_t Status::getValue(Term term) const {
 			return i->second;
 		}
 	} else if (term.type == Term::EXPRESSION) {
-		return values[term.value];
+		if (term.value < values.size()) {
+			return values[term.value];
+		} else {
+			return 0;
+		}
 	} else {
 		return term.value;
 	}
@@ -508,26 +513,30 @@ bool Simulator::run(const Process &process) {
 		stack.pop_back();
 
 		if (status.getValue(process.done) != 0) {
-			//printf("done\n");
-			bool found = false;
-			for (size_t i = 0; i < process.minimize.size(); i++) {
-				if (minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i])) {
-					minima[i] = status;
-					found = true;
-				}
-			}
-			
-			for (size_t i = 0; i < process.maximize.size(); i++) {
-				if (maxima[i].prev == nullptr or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i])) {
-					maxima[i] = status;
-					found = true;
-				}
-			}
-
-			if (not found) {
-				status.drop();
+			if (process.minimize.size() == 0 and process.maximize.size() == 0) {
+				minima.push_back(status);
+				return true;
 			} else {
-				success = true;
+				bool found = false;
+				for (size_t i = 0; i < process.minimize.size(); i++) {
+					if (minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i])) {
+						minima[i] = status;
+						found = true;
+					}
+				}
+				
+				for (size_t i = 0; i < process.maximize.size(); i++) {
+					if (maxima[i].prev == nullptr or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i])) {
+						maxima[i] = status;
+						found = true;
+					}
+				}
+
+				if (not found) {
+					status.drop();
+				} else {
+					success = true;
+				}
 			}
 		} else {
 			for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
@@ -540,6 +549,9 @@ bool Simulator::run(const Process &process) {
 					// TODO(nbingham) check if seen
 					stack.push_back(choice);
 				} else if (choice.length > error.length) {
+					/*error.print(process);
+					std::cout << "error: " << error.msg << std::endl;
+					printf("\n\n");*/
 					error.drop();
 					error = choice;
 				} else {

@@ -1,10 +1,145 @@
 #include "simulator.h"
 #include <math.h>
 
+Step::Step() {
+	this->prev = nullptr;
+	this->branches = 1;
+}
+
+Step::Step(const Status &status, size_t taskId) {
+	this->taskId = taskId;
+	this->have = status.have;
+	this->values = status.values;
+	this->prev = status.prev;
+	if (this->prev != nullptr) {
+		this->prev->branches += 1;
+	}
+	this->branches = 1;
+}
+
+Step::~Step() {
+}
+
+int64_t Step::getValue(Term term) const {
+	if (term.type == Term::RESOURCE) {
+		auto i = have.find(term.value);
+		if (i == have.end()) {
+			return 0;
+		} else {
+			return i->second;
+		}
+	} else if (term.type == Term::EXPRESSION) {
+		return values[term.value];
+	} else {
+		return term.value;
+	}
+}
+
+bool Step::mergeAndCheck(const Process &process, std::map<int32_t, int64_t> *need) {
+	auto i = need->begin();
+	auto j = process.tasks[this->taskId].requirements.begin();
+	auto k = have.begin();
+	const std::map<int32_t, Utilization> &requirements = process.tasks[this->taskId].requirements;
+
+	while (j != requirements.end() and j->second.type != Utilization::LOCK and j->second.type != Utilization::CONSUME) {
+		j++;
+	}
+
+	while (i != need->end() and j != requirements.end() and k != have.end()) {
+		if (k->first == i->first and i->first == j->first) {
+			i->second += getValue(j->second.amount);
+			if (k->second < i->second) {
+				return false;
+			}
+			k++;
+			i++;
+			do {
+				j++;
+			} while (j != requirements.end() and j->second.type != Utilization::LOCK and j->second.type != Utilization::CONSUME);
+		} else if (k->first < i->first and k->first < j->first) {
+			k++;
+		} else if (k->first > i->first or k->first > j->first) {
+			return false;
+		} else if (i->first < j->first) {
+			if (k->second < i->second) {
+				return false;
+			}
+			k++;
+			i++;
+		} else {
+			int64_t value = getValue(j->second.amount);
+			if (k->second < value) {
+				return false;
+			}
+			need->insert(i, std::pair<int32_t, int64_t>(j->first, value));
+			k++;
+			do {
+				j++;
+			} while (j != requirements.end() and j->second.type != Utilization::LOCK and j->second.type != Utilization::CONSUME);
+		}
+	}
+
+	while (k != have.end() and i != need->end()) {
+		if (k->first < i->first) {
+			k++;
+		} else if (k->first > i->first) {
+			return false;
+		} else {
+			if (k->second < i->second) {
+				return false;
+			}
+			k++;
+			i++;
+		}
+	}
+
+	while (k != have.end() and j != requirements.end()) {
+		if (k->first < j->first) {
+			k++;
+		} else if (k->first > j->first) {
+			return false;
+		} else {
+			int64_t value = getValue(j->second.amount);
+			if (k->second < value) {
+				return false;
+			}
+			need->insert(need->end(), std::pair<int32_t, int64_t>(j->first, value));
+			k++;
+			do {
+				j++;
+			} while (j != requirements.end() and j->second.type != Utilization::LOCK and j->second.type != Utilization::CONSUME);
+		}
+	}
+
+	return i == need->end() and j == requirements.end();
+}
+
+int64_t Status::psum(const Process &process, Term term, int64_t next) const {
+	std::map<int32_t, int64_t> need;
+
+	Step *curr = prev;
+	Step *start = nullptr;
+	while (curr != nullptr and curr->mergeAndCheck(process, &need)) {
+		start = curr;
+		curr = curr->prev;
+	}
+
+	if (prev == nullptr or start == nullptr) {
+		return -1;
+	} else {
+		int64_t value0 = prev->getValue(term);
+		int64_t value1 = start->getValue(term) + next;
+		return value1 > value0 ? value1 : value0;
+	}	
+}
+
 Status::Status() {
+	this->prev = nullptr;
 }
 
 Status::Status(const Process &process) {
+	this->prev = nullptr;
+
 	std::set<int32_t> exprs;
 	for (size_t i = 0; i < process.expressions.size(); i++) {
 		exprs.insert(i);
@@ -13,25 +148,34 @@ Status::Status(const Process &process) {
 	evaluate(process, exprs);
 
 	for (auto i = process.start.begin(); i != process.start.end(); i++) {
-		this->curr.insert(std::pair<int32_t, int64_t>(i->first, getValue(i->second)));
+		this->have.insert(std::pair<int32_t, int64_t>(i->first, getValue(i->second)));
 	}
 	
 	evaluate(process, exprs);
 }
 
 Status::Status(const Status &copy) {
-	this->schedule = copy.schedule;
-	this->curr = copy.curr;
+	this->have = copy.have;
 	this->values = copy.values;
+	this->prev = copy.prev;
 }
 
 Status::~Status() {
 }
 
+void Status::drop() {
+	while (prev and (--prev->branches) == 0) {
+		Step *curr = prev->prev;
+		delete prev;
+		prev = curr;
+	}
+	prev = nullptr;
+}
+
 int64_t Status::getValue(Term term) const {
 	if (term.type == Term::RESOURCE) {
-		auto i = curr.find(term.value);
-		if (i == curr.end()) {
+		auto i = have.find(term.value);
+		if (i == have.end()) {
 			return 0;
 		} else {
 			return i->second;
@@ -45,8 +189,8 @@ int64_t Status::getValue(Term term) const {
 
 void Status::print(const Process &process, Term term) const {
 	if (term.type == Term::RESOURCE) {
-		auto i = curr.find(term.value);
-		if (i == curr.end()) {
+		auto i = have.find(term.value);
+		if (i == have.end()) {
 			printf("%s:null", process.resources[term.value].name.c_str());
 		} else {
 			printf("%s:%ld", process.resources[term.value].name.c_str(), i->second);
@@ -84,9 +228,9 @@ bool Status::step(const Process &process, int32_t taskId) {
 	printf("Step %d\n", taskId);
 	std::set<int32_t> exprs;
 
-	auto i = curr.begin();
+	auto i = have.begin();
 	auto j = process.tasks[taskId].requirements.begin();
-	while (i != curr.end() and j != process.tasks[taskId].requirements.end()) {
+	while (i != have.end() and j != process.tasks[taskId].requirements.end()) {
 		if (i->first == j->first) {
 			int64_t amount = getValue(j->second.amount);
 			if (j->second.type != Utilization::PRODUCE && i->second < amount) {
@@ -110,7 +254,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 		} else {
 			int64_t amount = getValue(j->second.amount);
 			if (j->second.type == Utilization::PRODUCE) {
-				curr.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
+				have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
 				
 				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 			} else if (amount > 0) {
@@ -125,7 +269,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 	while (j != process.tasks[taskId].requirements.end()) {
 		int64_t amount = getValue(j->second.amount);
 		if (j->second.type == Utilization::PRODUCE) {
-			curr.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
+			have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
 
 			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
 		} else if (amount > 0) {
@@ -136,7 +280,7 @@ bool Status::step(const Process &process, int32_t taskId) {
 		j++;
 	}
 
-	for (auto i = curr.begin(); i != curr.end(); i++) {
+	for (auto i = have.begin(); i != have.end(); i++) {
 		printf("%s: %ld\n", process.resources[i->first].name.c_str(), i->second);
 	}
 
@@ -170,7 +314,7 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 			switch (expr.operators[0]) {
 				case Expression::ABS: value = operands[0] < 0 ? -operands[0] : operands[0]; break;
 				case Expression::SUM: value += operands[0]; break;
-				case Expression::PSUM: value += operands[0]; break; // TODO(nbingham)
+				case Expression::PSUM: value = psum(process, expr.terms[0], operands[0]); break;
 				case Expression::MIN: value = operands[0] < operands[1] ? operands[0] : operands[1]; break;
 				case Expression::MAX: value = operands[0] > operands[1] ? operands[0] : operands[1]; break;
 				case Expression::LOG: value = (int64_t)(log(operands[1])/log(operands[0])); break;
@@ -217,9 +361,9 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 }
 
 bool Status::satisfies(const std::map<int32_t, Term> &task) const {
-	auto i = curr.begin();
+	auto i = have.begin();
 	auto j = task.begin();
-	while (i != curr.end() and j != task.end()) {
+	while (i != have.end() and j != task.end()) {
 		if (i->first == j->first) {
 			if (i->second < getValue(j->second)) {
 				return false;
@@ -264,6 +408,24 @@ Simulator::Simulator() {
 }
 
 Simulator::~Simulator() {
+	reset();
+}
+
+void Simulator::reset() {
+	for (auto i = stack.begin(); i != stack.end(); i++) {
+		i->drop();
+	}
+	stack.clear();
+
+	for (auto i = minima.begin(); i != minima.end(); i++) {
+		i->drop();
+	}
+	minima.clear();
+
+	for (auto i = maxima.begin(); i != maxima.end(); i++) {
+		i->drop();
+	}
+	maxima.clear();
 }
 
 void Simulator::run(const Process &process) {
@@ -280,39 +442,49 @@ void Simulator::run(const Process &process) {
 
 		if (status.satisfies(process.end)) {
 			printf("satisfies end condition\n");
+			bool found = false;
 			for (size_t i = 0; i < process.minimize.size(); i++) {
-				if (minima[i].schedule.size() == 0 or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i])) {
+				if (minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i])) {
 					minima[i] = status;
+					found = true;
 				}
 			}
 			
 			for (size_t i = 0; i < process.maximize.size(); i++) {
-				if (maxima[i].schedule.size() == 0 or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i])) {
+				if (maxima[i].prev == nullptr or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i])) {
 					maxima[i] = status;
+					found = true;
 				}
+			}
+
+			if (not found) {
+				status.drop();
 			}
 		} else {
 			for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
 				printf("checking task %lu\n", taskId);
 				Status choice = status;
-				choice.schedule.push_back(taskId);
+				choice.prev = new Step(choice, taskId);
 				if (choice.step(process, taskId) and choice.satisfies(process, process.constraints)) {
 					printf("success\n");
 					// TODO(nbingham) check if seen
 					bool found = false;
 					for (size_t i = 0; not found and i < process.minimize.size(); i++) {
-						found = found or minima[i].schedule.size() == 0 or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i]);
+						found = found or minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i]);
 					}
 					
 					for (size_t i = 0; not found and i < process.maximize.size(); i++) {
-						found = found or maxima[i].schedule.size() == 0 or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i]);
+						found = found or maxima[i].prev == nullptr or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i]);
 					}
 
 					if (found) {
 						stack.push_back(choice);
+					} else {
+						choice.drop();
 					}
 				} else {
 					printf("fail\n");
+					choice.drop();
 				}
 			}
 		}

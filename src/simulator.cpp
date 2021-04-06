@@ -187,7 +187,7 @@ int64_t Status::getValue(Term term) const {
 			return i->second;
 		}
 	} else if (term.type == Term::EXPRESSION) {
-		if (term.value < values.size()) {
+		if (term.value < (int64_t)values.size()) {
 			return values[term.value];
 		} else {
 			return 0;
@@ -204,7 +204,7 @@ int64_t Status::sum(Term last, Term term) const {
 	return 0;
 }
 
-int64_t Status::psum(const Process &process, Term last, Term term) const {
+int64_t Status::makespan(const Process &process, Term last, Term term) const {
 	std::map<int32_t, int64_t> need;
 
 	Step *curr = prev;
@@ -411,7 +411,7 @@ void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 			switch (expr.operators[0]) {
 				case Expression::ABS: value = operands[0] < 0 ? -operands[0] : operands[0]; break;
 				case Expression::SUM: value = sum(Term(Term::EXPRESSION, *exprId), expr.terms[0]); break;
-				case Expression::PSUM: value = psum(process, Term(Term::EXPRESSION, *exprId), expr.terms[0]); break;
+				case Expression::MAKESPAN: value = makespan(process, Term(Term::EXPRESSION, *exprId), expr.terms[0]); break;
 				case Expression::MIN: value = operands[0] < operands[1] ? operands[0] : operands[1]; break;
 				case Expression::MAX: value = operands[0] > operands[1] ? operands[0] : operands[1]; break;
 				case Expression::LOG: value = (int64_t)(log(operands[1])/log(operands[0])); break;
@@ -469,6 +469,39 @@ bool Status::satisfies(const Process &process, const std::vector<Term> &constrai
 	return true;
 }
 
+bool Status::satisfies(const Process &process, const std::map<int32_t, Term> &end) const {
+	auto i = have.begin();
+	auto j = end.begin();
+
+	while (i != have.end() and j != end.end()) {
+		if (i->first == j->first) {
+			if (i->second < getValue(j->second)) {
+				return false;
+			}
+
+			i++;
+			j++;
+		} else if (i->first < j->first) {
+			i++;
+		} else {
+			if (getValue(j->second) > 0) {
+				return false;
+			}
+			j++;
+		}
+	}
+
+	while (j != end.end()) {
+		if (getValue(j->second) > 0) {
+			return false;
+		}
+		j++;
+	}
+
+	return true;
+}
+
+
 Simulator::Simulator() {
 }
 
@@ -522,7 +555,7 @@ bool Simulator::run(const Process &process) {
 		Status status = std::move(stack.back());
 		stack.pop_back();
 
-		if (status.getValue(process.done) != 0) {
+		if (status.satisfies(process, process.end)) {
 			if (process.minimize.size() == 0 and process.maximize.size() == 0) {
 				minima.push_back(status);
 				printf("\r                    \r");

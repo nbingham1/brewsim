@@ -36,8 +36,8 @@ int32_t loadOperator(lexer_t &lexer, const token_t &token) {
 		return Expression::ABS;
 	} else if (op == "sum") {
 		return Expression::SUM;
-	} else if (op == "psum") {
-		return Expression::PSUM;
+	} else if (op == "makespan") {
+		return Expression::MAKESPAN;
 	} else if (op == "min") {
 		return Expression::MIN;
 	} else if (op == "max") {
@@ -47,6 +47,7 @@ int32_t loadOperator(lexer_t &lexer, const token_t &token) {
 	} else if (op == "pow") {
 		return Expression::POW;
 	} else {
+		printf("unrecognized operator %s\n", op.c_str());
 		return -1;
 		// TODO(nbingham) flag an error
 	}
@@ -150,8 +151,10 @@ Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token
 	}
 }
 
-bool loadHave(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	auto i = token.tokens.begin();
+	std::string type = lexer.read(i->begin, i->end);
+	i++;
 
 	while (i != token.tokens.end()) {
 		Term amount = loadExpression(p, lexer, gram, *i);
@@ -163,20 +166,15 @@ bool loadHave(Process *p, lexer_t &lexer, const order_t &gram, const token_t &to
 
 		//printf("have %d %ld\n", index, amount.value);
 
-		p->start.insert(std::pair<int32_t, Term>(index, amount));
+		if (type == "have") {
+			p->start.insert(std::pair<int32_t, Term>(index, amount));
+		} else if (type == "need") {
+			p->end.insert(std::pair<int32_t, Term>(index, amount));
+		}
 	}
 
 	return true;	
 }
-
-bool loadNeed(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
-	auto i = token.tokens.begin();
-
-	p->done = loadExpression(p, lexer, gram, *i);
-
-	return true;	
-}
-
 
 bool loadEffect(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	Utilization result;
@@ -282,12 +280,8 @@ bool load(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token)
 			if (not loadTask(p, lexer, gram, i)) {
 				return false;
 			}
-		} else if (i.type == gram.HAVE) {
-			if (not loadHave(p, lexer, gram, i)) {
-				return false;
-			}
-		} else if (i.type == gram.NEED) {
-			if (not loadNeed(p, lexer, gram, i)) {
+		} else if (i.type == gram.RESOURCE) {
+			if (not loadResource(p, lexer, gram, i)) {
 				return false;
 			}
 		} else if (i.type == gram.VARIABLE) {

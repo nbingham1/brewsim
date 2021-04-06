@@ -71,7 +71,7 @@ struct Expression
 		MOD = 14,
 		ABS = 15,
 		SUM = 16,
-		PSUM = 17,
+		MAKESPAN = 17,
 		MIN = 18,
 		MAX = 19,
 		LOG = 20,
@@ -96,10 +96,10 @@ struct Process
 	std::vector<Term> constraints;
 	std::vector<Term> minimize;
 	std::vector<Term> maximize;
-	Term done;
 
 	// resourceId -> amount
 	std::map<int32_t, Term> start;
+	std::map<int32_t, Term> end;
 
 	int32_t getResourceId(std::string resource);
 };

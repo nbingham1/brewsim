@@ -6,6 +6,8 @@
 
 int main(int argc, char **argv)
 {
+	printf("%d %d %d\n", '\r', '\n', '\t');
+
 	if (argc > 1) {
 		order_t order;
 		grammar_t grammar;
@@ -15,6 +17,8 @@ int main(int argc, char **argv)
 		lexer.open(argv[1]);
 
 		parsing result = grammar.parse(lexer);
+		std::string tmp = lexer.read(result.tree.end-2, result.tree.end+1);
+		printf("%d %d %d\n", tmp[0], tmp[1], tmp[2]);
 		if (result.msgs.size() == 0) {
 			Process proc;
 			load(&proc, lexer, order, result.tree);

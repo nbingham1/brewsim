@@ -1,16 +1,18 @@
 NAME          = brewsim
 SRCDIR        = src 
-CXXFLAGS	    = -O2 -g -Wall -fmessage-length=0 -std=c++17
+CXXFLAGS	    = -O2 -g -Wall -fmessage-length=0 -std=c++17 -static
 INCLUDE_PATHS = -I. -I../../pgen/
-LIBRARY_PATHS = -L../../pgen/build-@(TUP_PLATFORM)
-LIBRARIES     = -Wl,-Bstatic -lpgen -Wl,-Bdynamic
 
 ifeq (@(TUP_PLATFORM),windows)
 CXX           = x86_64-w64-mingw32-g++
 TARGET        = brewsim-@(TUP_PLATFORM).exe
+LIBRARY_PATHS = -L../../pgen/build-@(TUP_PLATFORM) -L/lib/gcc/x86_64-w64-mingw32/9.3-win32
+LIBRARIES     = -Wl,-Bstatic -lpgen
 else
 CXX           = g++
 TARGET        = brewsim-@(TUP_PLATFORM)
+LIBRARY_PATHS = -L../../pgen/build-@(TUP_PLATFORM)
+LIBRARIES     = -Wl,-Bstatic -lpgen -Wl,-Bdynamic
 endif
 
 # Executable

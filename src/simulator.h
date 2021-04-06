@@ -51,11 +51,12 @@ struct Status
 	void print(const Process &process) const;
 
 	int64_t sum(Term last, Term term) const;
-	int64_t psum(const Process &process, Term last, Term term) const;
+	int64_t makespan(const Process &process, Term last, Term term) const;
 
 	bool step(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);
 	bool satisfies(const Process &process, const std::vector<Term> &constraints) const;
+	bool satisfies(const Process &process, const std::map<int32_t, Term> &end) const;
 };
 
 struct Simulator

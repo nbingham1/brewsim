@@ -11,9 +11,7 @@ Term loadFunction(Process *p, lexer_t &lexer, const order_t &gram, const token_t
 
 Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token);
 
-bool loadHave(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token);
-
-bool loadNeed(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token);
+bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token);
 
 bool loadEffect(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const token_t &token);
 

@@ -142,7 +142,7 @@ Status::Status() {
 	this->length = 0;
 }
 
-Status::Status(const Process &process) {
+Status::Status(const Process &process, bool reverse) {
 	this->prev = nullptr;
 	this->length = 0;
 
@@ -153,8 +153,14 @@ Status::Status(const Process &process) {
 
 	evaluate(process, exprs);
 
-	for (auto i = process.start.begin(); i != process.start.end(); i++) {
-		this->have.insert(std::pair<int32_t, int64_t>(i->first, getValue(i->second)));
+	if (reverse) {
+		for (auto i = process.end.begin(); i != process.end.end(); i++) {
+			this->have.insert(std::pair<int32_t, int64_t>(i->first, getValue(i->second)));
+		}
+	} else {
+		for (auto i = process.start.begin(); i != process.start.end(); i++) {
+			this->have.insert(std::pair<int32_t, int64_t>(i->first, getValue(i->second)));
+		}
 	}
 	
 	evaluate(process, exprs);
@@ -387,6 +393,117 @@ bool Status::step(const Process &process, int32_t taskId) {
 	return true;
 }
 
+bool Status::rstep(const Process &process, int32_t taskId) {
+	std::set<int32_t> exprs;
+
+	auto i = have.begin();
+	auto j = process.tasks[taskId].requirements.begin();
+	while (i != have.end() and j != process.tasks[taskId].requirements.end()) {
+		if (i->first == j->first) {
+			int64_t amount = getValue(j->second.amount);
+			if (j->second.type == Utilization::PRODUCE && i->second < amount) {
+				msg = "not enough " + process.resources[j->first].name + " " + std::to_string(i->second) + " < " + std::to_string(amount);
+				return false;
+			}
+
+			if (j->second.type == Utilization::PRODUCE) {
+				i->second -= amount;
+				/*if (i->second < amount) {
+					Step *s = prev;
+					while (s) {
+						auto l = s->have.find(j->first);
+						if (l != s->have.end()) {
+							l->second += amount - i->second;
+						} else {
+							s->have.insert(std::pair<int32_t, int64_t>(j->first, amount - i->second));
+						}
+						s = s->prev;
+					}
+				}*/
+			} else if (j->second.type == Utilization::CONSUME) {
+				i->second += amount;
+			}
+
+			if (j->second.type == Utilization::CONSUME or j->second.type == Utilization::PRODUCE) {
+				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
+			}
+			auto tmp = i;
+			i++;
+			j++;
+			if (tmp->second == 0) {
+				have.erase(tmp);
+			}
+		} else if (i->first < j->first) {
+			i++;
+		} else {
+			int64_t amount = getValue(j->second.amount);
+			if (j->second.type == Utilization::CONSUME) {
+				have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
+				
+				exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
+			} else if (j->second.type == Utilization::PRODUCE) {
+				if (0 < amount) {
+					msg = "not enough " + process.resources[j->first].name + " 0 < " + std::to_string(amount);
+					return false;
+				}
+
+				/*if (0 < amount) {
+					Step *s = prev;
+					while (s) {
+						auto l = s->have.find(j->first);
+						if (l != s->have.end()) {
+							l->second += amount;
+						} else {
+							s->have.insert(std::pair<int32_t, int64_t>(j->first, amount));
+						}
+						s = s->prev;
+					}
+				}*/
+			}
+
+			j++;
+		}
+	}
+
+	while (j != process.tasks[taskId].requirements.end()) {
+		int64_t amount = getValue(j->second.amount);
+		if (j->second.type == Utilization::CONSUME) {
+			have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
+
+			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
+		} else if (j->second.type == Utilization::PRODUCE) {
+			if (0 < amount) {
+				msg = "not enough " + process.resources[j->first].name + " 0 < " + std::to_string(amount);
+				return false;
+			}
+
+			/*if (0 < amount) {
+				Step *s = prev;
+				while (s) {
+					auto l = s->have.find(j->first);
+					if (l != s->have.end()) {
+						l->second += amount;
+					} else {
+						s->have.insert(std::pair<int32_t, int64_t>(j->first, amount));
+					}
+					s = s->prev;
+				}
+			}*/
+		}
+
+		j++;
+	}
+
+	/*for (auto i = have.begin(); i != have.end(); i++) {
+		printf("%s: %lld\n", process.resources[i->first].name.c_str(), i->second);
+	}*/
+
+	evaluate(process, exprs);
+
+	return true;
+}
+
+
 void Status::evaluate(const Process &process, std::set<int32_t> exprs)
 {
 	// The parser/interpreter must guarantee that expressions with higher Id
@@ -600,6 +717,80 @@ bool Simulator::run(const Process &process) {
 					error = choice;
 				} else {
 					choice.drop();
+				}
+			}
+		}
+	}
+
+	printf("\r                    \r");
+
+	return success;
+}
+
+bool Simulator::rrun(const Process &process) {
+	bool success = false;
+
+	this->stack.clear();
+	this->stack.push_back(Status(process, true));
+
+	minima.resize(process.minimize.size());
+	maxima.resize(process.maximize.size());
+
+	int64_t count = 0;
+	while (stack.size() > 0) {
+		printf("\rstack %llu step %lld", stack.size(), count);
+		fflush(stdout);
+		Status status = std::move(stack.back());
+		stack.pop_back();
+
+		bool found = false;
+		for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
+			Status choice = status;
+			choice.prev = new Step(choice, taskId);
+			choice.length += 1;
+			bool stepped = choice.rstep(process, taskId);
+			found = found or stepped;
+			if (stepped and
+					choice.satisfies(process, process.constraints) and
+					optimizes(choice, process)) {
+				// TODO(nbingham) check if seen
+				stack.push_back(choice);
+			} else if (choice.length > error.length) {
+				/*error.print(process);
+				std::cout << "error: " << error.msg << std::endl;
+				printf("\n\n");*/
+				error.drop();
+				error = choice;
+			} else {
+				choice.drop();
+			}
+		}
+
+		if (not found) {
+			if (process.minimize.size() == 0 and process.maximize.size() == 0) {
+				minima.push_back(status);
+				printf("\r                    \r");
+				return true;
+			} else {
+				bool found = false;
+				for (size_t i = 0; i < process.minimize.size(); i++) {
+					if (minima[i].prev == nullptr or status.getValue(process.minimize[i]) < minima[i].getValue(process.minimize[i])) {
+						minima[i] = status;
+						found = true;
+					}
+				}
+				
+				for (size_t i = 0; i < process.maximize.size(); i++) {
+					if (maxima[i].prev == nullptr or status.getValue(process.maximize[i]) > maxima[i].getValue(process.maximize[i])) {
+						maxima[i] = status;
+						found = true;
+					}
+				}
+
+				if (not found) {
+					status.drop();
+				} else {
+					success = true;
 				}
 			}
 		}

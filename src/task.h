@@ -6,6 +6,9 @@
 #include <set>
 #include <string>
 
+using ResourceID = int32_t;
+using ExprID = int32_t;
+
 struct Term
 {
 	enum {
@@ -22,24 +25,15 @@ struct Term
 	int64_t value;
 };
 
-struct Utilization
-{
-	enum {
-		USE = 0,
-		LOCK = 1,
-		CONSUME = 2,
-		PRODUCE = 3
-	};
-
-	Term amount;
-	int8_t type;
-};
-
 struct Task
 {
+	Task();
+	~Task();
+
 	std::string name;
-	// resourceId ->
-	std::map<int32_t, Utilization> requirements;
+	
+	Term guard;
+	std::vector<std::map<ResourceID, Term> > actions;
 };
 
 struct Resource
@@ -48,7 +42,7 @@ struct Resource
 	~Resource();
 
 	std::string name;
-	std::set<int32_t> parents;
+	std::set<ExprID> parents;
 };
 
 struct Expression
@@ -75,11 +69,12 @@ struct Expression
 		MIN = 18,
 		MAX = 19,
 		LOG = 20,
-		POW = 21
+		POW = 21,
+		DIFF = 22
 	};
 
 	std::vector<int32_t> operators;
-	std::set<int32_t> parents;
+	std::set<ExprID> parents;
 	std::vector<Term> terms;
 
 	static std::string opStr(int32_t);
@@ -87,19 +82,21 @@ struct Expression
 
 struct Process
 {
-	// resourceName
+	Process();
+	~Process();
+
 	std::vector<Resource> resources;
 	std::vector<Task> tasks;
 
 	std::vector<Expression> expressions;
 	std::map<std::string, Term> variables;
-	std::vector<Term> constraints;
 	std::vector<Term> minimize;
 	std::vector<Term> maximize;
 
-	// resourceId -> amount
-	std::map<int32_t, Term> start;
-	std::map<int32_t, Term> end;
+	std::map<ResourceID, Term> start;
+	
+	Term constraints;
+	Term end;
 
-	int32_t getResourceId(std::string resource);
+	ResourceID getResourceId(std::string resource);
 };

@@ -1,10 +1,13 @@
-order = (_ (resource | variable | select | constraint | task))+ _ ~"\0";
-resource = ("have" | "need") _ expression _ instance (_ ~"," _ expression _ instance)* _ ~";";
+order = (_ (have | need | variable | select | constraint | rule))+ _ ~"\0";
+have = ~"have" _ expression _ instance (_ ~"," _ expression _ instance)* _ ~";";
+need = ~"need" _ expression _ ~";";
 variable = ~"let" _ instance _ ~"=" _ expression _ ~";";
 select = ("min" | "max") _ expression _ ~";";
 constraint = ~"keep" _ expression _ ~";";
-task = ~"task" _ text _ ~"{" (_ effect)+ _ ~"}";
-effect = ("uses" | "locks" | "consumes" | "produces") _ expression _ instance (_ ~"," _ expression _ instance)* _ ~";";
+rule = expression _ ~"->" _ assigns _ (~";" _ assigns _)? ~":" _ text;
+
+assigns = assign _ (~"," _ assign _)*;
+assign = instance _ ("=" | "+=" | "-=") _ expression; 
 
 expression = expression0 (_ ("and" | "or") _ expression0)*;
 expression0 = expression1 (_ ("<" | ">" | "<=" | ">=" | "==" | "!=") _ expression1)?;
@@ -18,4 +21,4 @@ function = "[a-zA-Z_][a-zA-Z0-9_]*" _ ~"\(" _ expression _ (~"," _ expression _ 
 integer = "([0-9]+|inf)";
 text = "\"([^\"\\]|\\.)*\"";
 instance = "[_a-zA-Z][_a-zA-Z0-9]*";
-_ ~= "[ \t\n\r]*";
+_ ~= "[ \t\n\r]*(#[^\n\r]*[ \t\n\r]*)*";

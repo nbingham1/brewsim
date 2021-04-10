@@ -46,6 +46,8 @@ int32_t loadOperator(lexer_t &lexer, const token_t &token) {
 		return Expression::LOG;
 	} else if (op == "pow") {
 		return Expression::POW;
+	} else if (op == "diff") {
+		return Expression::DIFF;
 	} else {
 		printf("unrecognized operator %s\n", op.c_str());
 		return -1;
@@ -74,6 +76,14 @@ Term loadFunction(Process *p, lexer_t &lexer, const order_t &gram, const token_t
 	
 	p->expressions.push_back(result);
 	return Term(Term::EXPRESSION, p->expressions.size()-1);
+}
+
+void setParent(Process *p, Term term) {
+	if (term.type == Term::EXPRESSION) {
+		p->expressions[term.value].parents.insert(p->expressions.size());
+	} else if (term.type == Term::RESOURCE) {
+		p->resources[term.value].parents.insert(p->expressions.size());
+	}
 }
 
 Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
@@ -114,22 +124,14 @@ Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token
 
 		Term term = loadExpression(p, lexer, gram, *i);
 		result.terms.push_back(term);
-		if (term.type == Term::EXPRESSION) {
-			p->expressions[term.value].parents.insert(p->expressions.size());
-		} else if (term.type == Term::RESOURCE) {
-			p->resources[term.value].parents.insert(p->expressions.size());
-		}
+		setParent(p, term);
 		p->expressions.push_back(result);
 		return Term(Term::EXPRESSION, p->expressions.size()-1);
 	} else {
 		Expression result;
 		Term term = loadExpression(p, lexer, gram, *i);
 		result.terms.push_back(term);
-		if (term.type == Term::EXPRESSION) {
-			p->expressions[term.value].parents.insert(p->expressions.size());
-		} else if (term.type == Term::RESOURCE) {
-			p->resources[term.value].parents.insert(p->expressions.size());
-		}
+		setParent(p, term);
 		i++;
 		
 		while (i != token.tokens.end()) {
@@ -138,11 +140,7 @@ Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token
 
 			term = loadExpression(p, lexer, gram, *i);
 			result.terms.push_back(term);
-			if (term.type == Term::EXPRESSION) {
-				p->expressions[term.value].parents.insert(p->expressions.size());
-			} else if (term.type == Term::RESOURCE) {
-				p->resources[term.value].parents.insert(p->expressions.size());
-			}
+			setParent(p, term);
 			i++;
 		}
 
@@ -151,10 +149,8 @@ Term loadExpression(Process *p, lexer_t &lexer, const order_t &gram, const token
 	}
 }
 
-bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+bool loadHave(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	auto i = token.tokens.begin();
-	std::string type = lexer.read(i->begin, i->end);
-	i++;
 
 	while (i != token.tokens.end()) {
 		Term amount = loadExpression(p, lexer, gram, *i);
@@ -166,74 +162,106 @@ bool loadResource(Process *p, lexer_t &lexer, const order_t &gram, const token_t
 
 		//printf("have %d %ld\n", index, amount.value);
 
-		if (type == "have") {
-			p->start.insert(std::pair<int32_t, Term>(index, amount));
-		} else if (type == "need") {
-			p->end.insert(std::pair<int32_t, Term>(index, amount));
-		}
+		p->start.insert(std::pair<int32_t, Term>(index, amount));
 	}
 
 	return true;	
 }
 
-bool loadEffect(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const token_t &token) {
-	Utilization result;
+bool loadNeed(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	auto i = token.tokens.begin();
-	std::string type = lexer.read(i->begin, i->end);
-	if (type == "uses") {
-		result.type = Utilization::USE;
-	} else if (type == "locks") {
-		result.type = Utilization::LOCK;
-	} else if (type == "consumes") {
-		result.type = Utilization::CONSUME;
-	} else if (type == "produces") {
-		result.type = Utilization::PRODUCE;
+
+	Term term = loadExpression(p, lexer, gram, *i);
+
+	if (p->end.type == Term::CONSTANT and p->end.value == 0) {
+		p->end = term;
 	} else {
-		// TODO(nbingham) flag an error
+		Expression result;
+		result.terms.push_back(p->end);
+		setParent(p, p->end);
+		result.terms.push_back(term);
+		setParent(p, term);
+		result.operators.push_back(Expression::AND);
+		p->expressions.push_back(result);
+		p->end = Term(Term::EXPRESSION, p->expressions.size()-1);
 	}
+
+	return true;
+}
+
+bool loadAssign(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	auto i = token.tokens.begin();
+	std::string name = lexer.read(i->begin, i->end);
+	int32_t index = p->getResourceId(name);
 	i++;
 
-	while (i != token.tokens.end()) {
-		result.amount = loadExpression(p, lexer, gram, *i);
-		i++;
+	std::string op = lexer.read(i->begin, i->end);
+	i++;
 
-		std::string name = lexer.read(i->begin, i->end);
-		int32_t index = p->getResourceId(name);
-		i++;
+	Term term = loadExpression(p, lexer, gram, *i);
+	i++;
 
-		t->requirements.insert(std::pair<int32_t, Utilization>(index, result));
+	auto u = t->actions.back().find(index);
+	if (u == t->actions.back().end()) {
+		u = t->actions.back().insert(std::pair<int32_t, Term>(index, Term(0, 0))).first;
+	}
+
+	if (op == "=") {
+		u->second = term;	
+	} else {
+		Expression result;
+		Term rsc(Term::RESOURCE, index);
+		result.terms.push_back(rsc);
+		setParent(p, rsc);
+		result.terms.push_back(term);
+		setParent(p, term);
+		if (op == "+=") {
+			result.operators.push_back(Expression::ADD);
+		} else {
+			result.operators.push_back(Expression::SUB);
+		}
+
+		p->expressions.push_back(result);
+		u->second = Term(Term::EXPRESSION, p->expressions.size()-1);
 	}
 
 	return true;	
 }
 
-bool loadTask(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
-	Task result;
+bool loadAssigns(Process *p, Task *t, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	t->actions.push_back(std::map<ResourceID, Term>());
+
 	auto i = token.tokens.begin();
-	if (i->type == gram.TEXT) {
-		result.name = lexer.read(i->begin, i->end);
-		i++;
-	} else {
-		// TODO(nbingham) flag an error
-	}
 
 	while (i != token.tokens.end()) {
-		if (i->type == gram.EFFECT) {
-			if (not loadEffect(p, &result, lexer, gram, *i)) {
-				return false;
-			}
-		} else {
-			// TODO(nbingham) flag an error
+		if (not loadAssign(p, t, lexer, gram, *i)) {
+			return false;
 		}
 		i++;
 	}
+	
+	return true;	
+}
 
-	//printf("found task %s\n", result.name.c_str());
+bool loadRule(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
+	Task result;
+	auto i = token.tokens.begin();
+
+	result.guard = loadExpression(p, lexer, gram, *i);
+	i++;
+
+	loadAssigns(p, &result, lexer, gram, *i);
+	i++;
+
+	if (i->type == gram.ASSIGNS) {
+		loadAssigns(p, &result, lexer, gram, *i);
+		i++;
+	}
+
+	result.name = lexer.read(i->begin, i->end);
+	i++;
+
 	p->tasks.push_back(result);
-	/*for (auto r : result.requirements) {
-		printf("%d %ld\n", r.first, r.second.amount.value);
-	}*/
-
 	return true;
 }
 
@@ -251,10 +279,22 @@ bool loadVariable(Process *p, lexer_t &lexer, const order_t &gram, const token_t
 
 bool loadConstraint(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	auto i = token.tokens.begin();
-	Term expr = loadExpression(p, lexer, gram, *i);
-	i++;
 
-	p->constraints.push_back(expr);
+	Term term = loadExpression(p, lexer, gram, *i);
+
+	if (p->constraints.type == Term::CONSTANT and p->constraints.value == 1) {
+		p->constraints = term;
+	} else {
+		Expression result;
+		result.terms.push_back(p->constraints);
+		setParent(p, p->constraints);
+		result.terms.push_back(term);
+		setParent(p, term);
+		result.operators.push_back(Expression::AND);
+		p->expressions.push_back(result);
+		p->constraints = Term(Term::EXPRESSION, p->expressions.size()-1);
+	}
+
 	return true;
 }
 
@@ -276,12 +316,16 @@ bool loadSelect(Process *p, lexer_t &lexer, const order_t &gram, const token_t &
 
 bool load(Process *p, lexer_t &lexer, const order_t &gram, const token_t &token) {
 	for (auto i : token.tokens) {
-		if (i.type == gram.TASK) {
-			if (not loadTask(p, lexer, gram, i)) {
+		if (i.type == gram.RULE) {
+			if (not loadRule(p, lexer, gram, i)) {
 				return false;
 			}
-		} else if (i.type == gram.RESOURCE) {
-			if (not loadResource(p, lexer, gram, i)) {
+		} else if (i.type == gram.HAVE) {
+			if (not loadHave(p, lexer, gram, i)) {
+				return false;
+			}
+		} else if (i.type == gram.NEED) {
+			if (not loadNeed(p, lexer, gram, i)) {
 				return false;
 			}
 		} else if (i.type == gram.VARIABLE) {

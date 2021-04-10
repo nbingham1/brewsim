@@ -39,6 +39,20 @@ Term::Term(int8_t type, int64_t value) {
 Term::~Term() {
 }
 
+Task::Task() {
+	guard = Term(Term::CONSTANT, 1);
+}
+
+Task::~Task() {
+}
+
+Process::Process() {
+	constraints = Term(Term::CONSTANT, 1);
+}
+
+Process::~Process() {
+}
+
 int32_t Process::getResourceId(std::string resource) {
 	for (size_t i = 0; i < resources.size(); i++) {
 		if (resources[i].name == resource) {

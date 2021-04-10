@@ -32,7 +32,7 @@ struct Step
 struct Status
 {
 	Status();
-	Status(const Process &process, bool reverse = false);
+	Status(const Process &process);
 	Status(const Status &copy);
 	~Status();
 
@@ -54,10 +54,7 @@ struct Status
 	int64_t makespan(const Process &process, Term last, Term term) const;
 
 	bool step(const Process &process, int32_t taskId);
-	bool rstep(const Process &process, int32_t taskId);
 	void evaluate(const Process &process, std::set<int32_t> exprs);
-	bool satisfies(const Process &process, const std::vector<Term> &constraints) const;
-	bool satisfies(const Process &process, const std::map<int32_t, Term> &end) const;
 };
 
 struct Simulator
@@ -73,6 +70,5 @@ struct Simulator
 	bool optimizes(const Status &status, const Process &process) const;
 	void reset();
 	bool run(const Process &process);
-	bool rrun(const Process &process);
 };
 

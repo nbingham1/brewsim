@@ -23,7 +23,7 @@ int main(int argc, char **argv)
 			Process proc;
 			load(&proc, lexer, order, result.tree);
 			Simulator sim;
-			if (sim.rrun(proc)) {
+			if (sim.run(proc)) {
 				printf("\n");
 
 				for (auto i = sim.minima.begin(); i != sim.minima.end(); i++) {

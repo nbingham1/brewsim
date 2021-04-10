@@ -1,70 +1,85 @@
-task "preheat oven to 350" {
-	uses 1 gas;
-	uses 1 person;
-	consumes 1 coldOven;
-	produces 1 hotOven;
-	consumes 5*60 seconds;
-}
+gas >= 1 and person >= 1 ->
+coldOven -= 1,
+hotOven += 1,
+seconds += 5*60
+: "preheat oven to 350"
 
-task "put garlic on baking sheet" {
-	locks 1 person;
-	consumes 15 garlicCloves;
-	consumes 1 bakingSheet;
-	consumes 3 seconds;
-	produces 1 bakingSheetWithGarlic;
-}
+1 ->
+person -= 1;
+garlicCloves -= 15,
+bakingSheet -= 1,
+seconds += 3,
+bakingSheetWithGarlic += 1
+: "put garlic on baking sheet"
 
-task "drizzle olive oil" {
-	locks 1 person;
-	consumes 1 bakingSheetWithGarlic;
-	consumes 1 tbspOliveOil;
-	consumes 2 seconds;
-	produces 1 bakingSheetWithOiledGarlic;
-}
+1 ->
+person -= 1;
+bakingSheetWithGarlic -= 1,
+tbspOliveOil -= 1,
+seconds += 2,
+bakingSheetWithOiledGarlic += 1
+: "drizzle olive oil"
 
-task "bake garlic" {
-	uses 1 person;
-	uses 1 hotOven;
-	consumes 20*60 seconds;
-	consumes 1 bakingSheetWithOiledGarlic;
-	produces 1 hotBakingSheetWithCookedGarlic;
-}
+person >= 1 and hotOven >= 1 ->
+seconds += 20*60,
+bakingSheetWithOiledGarlic -= 1,
+hotBakingSheetWithCookedGarlic += 1
+: "bake garlic"
 
-task "cool garlic" {
-	uses 1 person;
-	consumes 5*60 seconds;
-	consumes 1 hotBakingSheetWithCookedGarlic;
-	produces 1 bakingSheetWithCookedGarlic;
-}
+person >= 1 ->
+seconds += 5*60,
+hotBakingSheetWithCookedGarlic -= 1,
+bakingSheetWithCookedGarlic += 1
+: "cool garlic"
 
-task "put garlic in food processor" {
-	consumes 2 tbspOliveOil;
-	uses 1 foodProcessor;
-	consumes 1 bakingSheetWithCookedGarlic;
-	produces 4 garlicPaste;
-	produces 1 bakingSheet;
-	consumes 10 seconds;
-	locks 1 person;
-}
+foodProcessor >= 1
+-> person -= 1;
+tbspOliveOil -= 2,
+bakingSheetWithCookedGarlic -= 1,
+garlicPaste += 4,
+bakingSheet += 1,
+seconds += 10
+: "put garlic in food processor"
 
-task "season steak" {
-	consumes 1 steak;
-	locks 1 salt;
-	locks 1 pepper;
-	consumes 1 garlicPaste;
-	locks 1 person;
-	produces 1 seasonedSteak;
-}
+1 ->
+salt -= 1,
+pepper -= 1,
+person -= 1 ;
+steak -= 1,
+garlicPaste -= 1,
+seasonedSteak += 1
+: "season steak"
 
-task "cook steak" {
-	consumes 1 seasonedSteak;
-	consumes 10*60 seconds;
-	uses 1 pan;
-	uses 1 person;
-	produces 1 cookedSteak;
-}
+pan >= 1 and person >= 1 ->
+seasonedSteak -= 1,
+seconds += 10*60,
+cookedSteak += 1
+: "cook steak"
 
-have 1 gas, 1 person, inf seconds, 1 salt, 1 pepper, 4 steak, 15 garlicCloves, 1 bakingSheet, 1 coldOven, 4 tbspOliveOil, 1 foodProcessor, 1 pan;
-need 1 gas, 1 person, 1 hotOven, 1 bakingSheet, 1 tbspOliveOil, 1 foodProcessor, 1 salt, 1 pepper, 1 pan, 4 cookedSteak;
-let duration = makespan(seconds);
+have 1 gas,
+	1 person,
+	1 salt,
+	1 pepper,
+	4 steak,
+	15 garlicCloves,
+	1 bakingSheet,
+	1 coldOven,
+	4 tbspOliveOil,
+	1 foodProcessor,
+	1 pan;
+need cookedSteak >= 4;
+keep steak >= 0 and
+	garlicCloves >= 0 and
+	bakingSheet >= 0 and
+	coldOven >= 0 and
+	tbspOliveOil >= 0 and
+	foodProcessor >= 0 and
+	pan >= 0 and
+	seasonedSteak >= 0 and
+	garlicPaste >= 0 and
+	bakingSheetWithGarlic >= 0 and
+	bakingSheetWithOiledGarlic >= 0 and
+	bakingSheetWithCookedGarlic >= 0 and
+	hotBakingSheetWithCookedGarlic >= 0;
+let duration = diff(seconds);
 min duration;

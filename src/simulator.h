@@ -8,6 +8,27 @@
 #include <unordered_set>
 
 struct Status;
+struct Step;
+
+struct State
+{
+	State();
+	State(const State &state);
+	~State();
+
+	std::map<ResourceID, int64_t> have;
+	std::vector<int64_t> values;
+
+	int64_t getValue(Term term) const;
+	bool step(const Process &process, const Step *prev, int32_t taskId);
+	void evaluate(const Process &process, const Step *prev, std::set<int32_t> exprs);
+
+	int64_t sum(const Step *prev, Term last, Term term) const;
+	int64_t makespan(const Process &process, const Step *prev, Term last, Term term) const;
+
+	void print(const Process &process, Term term) const;
+	void print(const Process &process) const;
+};
 
 struct Step
 {
@@ -16,15 +37,10 @@ struct Step
 	~Step();
 
 	size_t taskId;
-	// resourceId -> amount
-	std::map<int32_t, int64_t> have;
-	std::vector<int64_t> values;
+	State state;
 	int32_t branches;
 
 	Step *prev;
-
-	int64_t getValue(Term term) const;
-	bool mergeAndCheck(const Process &process, std::map<int32_t, int64_t> *need);
 
 	void print(const Process &process) const;
 };
@@ -37,24 +53,13 @@ struct Status
 	~Status();
 
 	Step *prev;
+	State state;
 
-	// resourceId -> amount
-	std::map<int32_t, int64_t> have;
-
-	std::vector<int64_t> values;
 	std::string msg;
 	int64_t length;
 
 	void drop();
-	int64_t getValue(Term term) const;
-	void print(const Process &process, Term term) const;
 	void print(const Process &process) const;
-
-	int64_t sum(Term last, Term term) const;
-	int64_t makespan(const Process &process, Term last, Term term) const;
-
-	bool step(const Process &process, int32_t taskId);
-	void evaluate(const Process &process, std::set<int32_t> exprs);
 };
 
 struct Simulator

@@ -1,13 +1,14 @@
 #include "simulator.h"
 #include <math.h>
 #include <iostream>
+#include <sstream>
 
 State::State() {
 }
 
-State::State(const State &state) {
-	this->have = state.have;
-	this->values = state.values;
+State::State(const State &copy) {
+	this->have = copy.have;
+	this->values = copy.values;
 }
 
 State::~State() {
@@ -22,7 +23,7 @@ int64_t State::getValue(Term term) const {
 			return i->second;
 		}
 	} else if (term.type == Term::EXPRESSION) {
-		if (term.value < (int64_t)values.size()) {
+		if (term.value >= 0 and term.value < (int64_t)values.size()) {
 			return values[term.value];
 		} else {
 			return 0;
@@ -30,59 +31,6 @@ int64_t State::getValue(Term term) const {
 	} else {
 		return term.value;
 	}
-}
-
-bool State::step(const Process &process, const Step *prev, int32_t taskId) {
-	if (getValue(process.tasks[taskId].guard) == 0) {
-		return false;
-	}
-
-	std::set<int32_t> exprs;
-
-	auto i = have.begin();
-	auto j = process.tasks[taskId].actions.back().begin();
-	while (i != have.end() and j != process.tasks[taskId].actions.back().end()) {
-		if (i->first == j->first) {
-			int64_t amount = getValue(j->second);
-
-			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
-			if (amount == 0) {
-				i = have.erase(i);
-			} else {
-				i->second = amount;
-				i++;
-			}
-			j++;
-		} else if (i->first < j->first) {
-			i++;
-		} else {
-			int64_t amount = getValue(j->second);
-
-			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
-			if (amount != 0) {
-				have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
-			}
-			j++;
-		}
-	}
-
-	while (j != process.tasks[taskId].actions.back().end()) {
-		int64_t amount = getValue(j->second);
-
-		exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
-		if (amount != 0) {
-			have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
-		}
-		j++;
-	}
-
-	/*for (auto i = have.begin(); i != have.end(); i++) {
-		printf("%s: %lld\n", process.resources[i->first].name.c_str(), i->second);
-	}*/
-
-	evaluate(process, prev, exprs);
-
-	return getValue(process.constraints) != 0;
 }
 
 void State::evaluate(const Process &process, const Step *prev, std::set<int32_t> exprs)
@@ -114,18 +62,19 @@ void State::evaluate(const Process &process, const Step *prev, std::set<int32_t>
 				case Expression::POW: value = (int64_t)pow(operands[0], operands[1]); break;
 				case Expression::DIFF:
 					value = operands[0];
-					if (prev != nullptr) {
-						value -= prev->state.getValue(expr.terms[0]);
+					if (prev != nullptr and prev->states.size() > 0) {
+						value -= prev->states.back().getValue(expr.terms[0]);
 					}
 					break;
 				case Expression::SUM:
 					value = operands[0];
-					if (prev != nullptr) {
-						value += prev->state.getValue(Term(Term::EXPRESSION, *exprId));
+					if (prev != nullptr and prev->states.size() > 0) {
+						value += prev->states.back().getValue(Term(Term::EXPRESSION, *exprId));
 					}
 					break;
 				case Expression::MAKESPAN:
-					value = makespan(process, prev, Term(Term::EXPRESSION, *exprId), expr.terms[0]);
+					value = 0;
+					//value = makespan(process, prev, Term(Term::EXPRESSION, *exprId), expr.terms[0]);
 					break;
 			}
 		} else if (expr.terms.size() == 1) {
@@ -168,9 +117,52 @@ void State::evaluate(const Process &process, const Step *prev, std::set<int32_t>
 	}
 }
 
+void State::step(const Process &process, const Step *prev, const Action &action) {
+	std::set<int32_t> exprs;
+
+	auto i = have.begin();
+	auto j = action.begin();
+	while (i != have.end() and j != action.end()) {
+		if (i->first == j->first) {
+			int64_t amount = getValue(j->second);
+
+			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
+			if (amount == 0) {
+				i = have.erase(i);
+			} else {
+				i->second = amount;
+				i++;
+			}
+			j++;
+		} else if (i->first < j->first) {
+			i++;
+		} else {
+			int64_t amount = getValue(j->second);
+
+			exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
+			if (amount != 0) {
+				have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
+			}
+			j++;
+		}
+	}
+
+	while (j != action.end()) {
+		int64_t amount = getValue(j->second);
+
+		exprs.insert(process.resources[j->first].parents.begin(), process.resources[j->first].parents.end());
+		if (amount != 0) {
+			have.insert(i, std::pair<int32_t, int64_t>(j->first, amount));
+		}
+		j++;
+	}
+
+	evaluate(process, prev, exprs);
+}
+
 int64_t State::sum(const Step *prev, Term last, Term term) const {
 	if (prev != nullptr) {
-		return prev->state.getValue(last) + getValue(term);
+		return prev->states.back().getValue(last) + getValue(term);
 	}
 	return 0;
 }
@@ -184,15 +176,15 @@ int64_t State::makespan(const Process &process, const Step *prev, Term last, Ter
 		start = curr;
 		curr = curr->prev;
 
-		if (curr->state.getValue(process.tasks[prev->taskId].guard) == 0) {
+		if (curr->states.back().getValue(process.tasks[prev->taskId].guard) == 0) {
 			break;
 		}
 
-		if (prev->state.getValue(process.tasks[curr->taskId].guard) == 0) {
+		if (prev->states.back().getValue(process.tasks[curr->taskId].guard) == 0) {
 			break;
 		}
 
-		if (prev->state.getValue(process.tasks[curr->taskId].guard) == 0) {
+		if (prev->states.back().getValue(process.tasks[curr->taskId].guard) == 0) {
 			break;
 		}
 	}
@@ -200,50 +192,52 @@ int64_t State::makespan(const Process &process, const Step *prev, Term last, Ter
 	int64_t value0 = 0;
 	int64_t value1 = 0;
 	if (prev != nullptr) {
-		value0 = prev->state.getValue(last);
-		value1 = prev->state.getValue(term) - getValue(term);
+		value0 = prev->states.back().getValue(last);
+		value1 = prev->states.back().getValue(term) - getValue(term);
 	}
 	if (start != nullptr) {
-		value1 += start->state.getValue(last);
+		value1 += start->states.back().getValue(last);
 	}
 	return value1 > value0 ? value1 : value0;
 }
 
-void State::print(const Process &process, Term term) const {
+std::string State::print(const Process &process, Term term) const {
+	std::stringstream result;
+
 	if (term.type == Term::RESOURCE) {
 		auto i = have.find(term.value);
 		if (i == have.end()) {
-			printf("%s:null", process.resources[term.value].name.c_str());
+			result << process.resources[term.value].name << ":null";
 		} else {
-			printf("%s:%lld", process.resources[term.value].name.c_str(), i->second);
+			result << process.resources[term.value].name << ":" << i->second;
 		}
 	} else if (term.type == Term::EXPRESSION) {
 		const Expression &expr = process.expressions[term.value];
 		if (expr.terms.size() == 1) {
-			printf("(");
+			result << "(";
 			if (expr.operators.size() > 0) {
 				if (expr.operators[0] == Expression::NOT) {
-					printf("!");
+					result << "!";
 				} else if (expr.operators[0] == Expression::NEG) {
-					printf("-");
+					result << "-";
 				}
 			}
 
-			print(process, expr.terms[0]);
-			printf("):%lld", values[term.value]);
+			result << print(process, expr.terms[0]) << "):" << values[term.value];
 		} else {
-			printf("(");
+			result << "(";
 			for (size_t i = 0; i < expr.terms.size(); i++) {
 				if (i > 0) {
-					printf("%s", Expression::opStr(expr.operators[i-1]).c_str());
+					result << Expression::opStr(expr.operators[i-1]);
 				}
-				print(process, expr.terms[i]);
+				result << print(process, expr.terms[i]);
 			}
-			printf("):%lld\n", values[term.value]);
+			result << "):" << values[term.value];
 		}
 	} else {
-		printf("%lld", term.value);
+		result << term.value;
 	}
+	return result.str();
 }
 
 void State::print(const Process &process) const {
@@ -260,7 +254,9 @@ void State::print(const Process &process) const {
 		if (i != have.begin()) {
 			printf(", ");
 		}
-		printf("%lld %s", i->second, process.resources[i->first].name.c_str());
+		if (i->first >= 0 and i->first < process.resources.size()) {
+			printf("%lld %s", i->second, process.resources[i->first].name.c_str());
+		}
 	}
 	if (have.size() != 0) {
 		printf("\n");
@@ -272,18 +268,23 @@ Step::Step() {
 	this->branches = 1;
 }
 
-Step::Step(const Status &status, size_t taskId) {
+Step::Step(Step *prev, size_t taskId) {
 	this->taskId = taskId;
-	this->state = status.state;
-	this->prev = status.prev;
-	if (this->prev != nullptr) {
-		this->prev->branches += 1;
-	}
+	this->prev = prev;
 	this->branches = 1;
+}
+
+Step::Step(const Step &copy) {
+	this->taskId = copy.taskId;
+	this->states = copy.states;
+	this->branches = copy.branches;
+	this->prev = copy.prev;
 }
 
 Step::~Step() {
 }
+
+
 
 /*bool Step::mergeAndCheck(const Process &process, std::map<int32_t, int64_t> *need) {
 	auto i = need->begin();
@@ -355,8 +356,13 @@ Step::~Step() {
 }*/
 
 void Step::print(const Process &process) const {
-	printf("%s\n", process.tasks[taskId].name.c_str());
-	state.print(process);
+	printf("%d\n", taskId);
+	if (taskId >= 0 and taskId < process.tasks.size()) {
+		printf("%s\n", process.tasks[taskId].name.c_str());
+	}
+	for (auto i = states.begin(); i != states.end(); i++) {
+		i->print(process);
+	}
 }
 
 Status::Status() {
@@ -376,7 +382,7 @@ Status::Status(const Process &process) {
 	state.evaluate(process, nullptr, exprs);
 
 	for (auto i = process.start.begin(); i != process.start.end(); i++) {
-		this->state.have.insert(std::pair<int32_t, int64_t>(i->first, state.getValue(i->second)));
+		state.have.insert(std::pair<int32_t, int64_t>(i->first, state.getValue(i->second)));
 	}
 	
 	state.evaluate(process, nullptr, exprs);
@@ -385,6 +391,8 @@ Status::Status(const Process &process) {
 Status::Status(const Status &copy) {
 	this->state = copy.state;
 	this->prev = copy.prev;
+	this->msg = copy.msg;
+	this->length = copy.length;
 }
 
 Status::~Status() {
@@ -397,6 +405,35 @@ void Status::drop() {
 		prev = curr;
 	}
 	prev = nullptr;
+}
+
+bool Status::step(const Process &process, int32_t taskId) {
+	if (prev != nullptr) {
+		prev->branches += 1;
+	}
+
+	if (state.getValue(process.tasks[taskId].guard) == 0) {
+		msg = "does not pass guard: " + state.print(process, process.tasks[taskId].guard);
+		return false;
+	}
+
+	prev = new Step(prev, taskId);
+	length += 1;
+
+	for (auto i = process.tasks[taskId].actions.begin(); i != process.tasks[taskId].actions.end(); i++) {
+		prev->states.push_back(state);
+		state.step(process, prev, *i);
+		if (state.getValue(process.constraints) == 0) {
+			msg = "violated constraints: " + state.print(process, process.constraints);
+			return false;
+		}
+	}
+	
+	/*for (auto i = have.begin(); i != have.end(); i++) {
+		printf("%s: %lld\n", process.resources[i->first].name.c_str(), i->second);
+	}*/
+
+	return true;
 }
 
 void Status::print(const Process &process) const
@@ -433,7 +470,7 @@ void Status::print(const Process &process) const
 	}
 }
 
-Simulator::Simulator() {
+Simulator::Simulator() : error() {
 }
 
 Simulator::~Simulator() {
@@ -481,7 +518,7 @@ bool Simulator::run(const Process &process) {
 
 	int64_t count = 0;
 	while (stack.size() > 0) {
-		printf("\rstack %llu step %lld", stack.size(), count);
+		printf("stack %llu step %lld\n", stack.size(), count++);
 		fflush(stdout);
 		Status status = std::move(stack.back());
 		stack.pop_back();
@@ -516,19 +553,17 @@ bool Simulator::run(const Process &process) {
 		} else {
 			for (size_t taskId = 0; taskId < process.tasks.size(); taskId++) {
 				Status choice = status;
-				choice.prev = new Step(choice, taskId);
-				choice.length += 1;
 				//printf("Task: %s\n", process.tasks[taskId].name.c_str());
-				//choice.print(process, process.tasks[taskId].guard);
+				//choice.state.print(process, process.tasks[taskId].guard);
 				//printf("\n");
-				if (choice.state.step(process, choice.prev, taskId)
+				if (choice.step(process, taskId)
 					and optimizes(choice, process)) {
 					// TODO(nbingham) check if seen
 					stack.push_back(choice);
 				} else if (choice.length > error.length) {
-					/*error.print(process);
-					std::cout << "error: " << error.msg << std::endl;
-					printf("\n\n");*/
+					//error.print(process);
+					//std::cout << "error: " << error.msg << std::endl;
+					//printf("\n\n");
 					error.drop();
 					error = choice;
 				} else {

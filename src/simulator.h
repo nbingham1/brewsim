@@ -13,31 +13,32 @@ struct Step;
 struct State
 {
 	State();
-	State(const State &state);
+	State(const State &copy);
 	~State();
 
 	std::map<ResourceID, int64_t> have;
 	std::vector<int64_t> values;
 
 	int64_t getValue(Term term) const;
-	bool step(const Process &process, const Step *prev, int32_t taskId);
 	void evaluate(const Process &process, const Step *prev, std::set<int32_t> exprs);
+	void step(const Process &process, const Step *prev, const Action &action);
 
 	int64_t sum(const Step *prev, Term last, Term term) const;
 	int64_t makespan(const Process &process, const Step *prev, Term last, Term term) const;
 
-	void print(const Process &process, Term term) const;
+	std::string print(const Process &process, Term term) const;
 	void print(const Process &process) const;
 };
 
 struct Step
 {
 	Step();
-	Step(const Status &status, size_t taskId);
+	Step(Step *prev, size_t taskId);
+	Step(const Step &copy);
 	~Step();
 
 	size_t taskId;
-	State state;
+	std::vector<State> states;
 	int32_t branches;
 
 	Step *prev;
@@ -58,6 +59,7 @@ struct Status
 	std::string msg;
 	int64_t length;
 
+	bool step(const Process &process, int32_t taskId);
 	void drop();
 	void print(const Process &process) const;
 };

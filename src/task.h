@@ -25,6 +25,8 @@ struct Term
 	int64_t value;
 };
 
+using Action = std::map<ResourceID, Term>;
+
 struct Task
 {
 	Task();
@@ -33,7 +35,7 @@ struct Task
 	std::string name;
 	
 	Term guard;
-	std::vector<std::map<ResourceID, Term> > actions;
+	std::vector<Action> actions;
 };
 
 struct Resource
@@ -93,7 +95,7 @@ struct Process
 	std::vector<Term> minimize;
 	std::vector<Term> maximize;
 
-	std::map<ResourceID, Term> start;
+	Action start;
 	
 	Term constraints;
 	Term end;
